@@ -3,6 +3,15 @@ import { makeKeyString } from 'objectUtils';
 const NOTEBOOK_LOCAL_STORAGE = 'notebook-storage';
 let currentNotebookObjectIdentifier = null;
 let unlisten = null;
+let _storage = null;
+
+export function setNotebookStorage(storage) {
+  _storage = storage;
+}
+
+function getStorage() {
+  return _storage || window.localStorage;
+}
 
 function defaultNotebookObjectChanged(newDomainObject) {
   if (newDomainObject.location !== null) {
@@ -40,18 +49,18 @@ function removeListener() {
 }
 
 function saveDefaultNotebook(notebookStorage) {
-  window.localStorage.setItem(NOTEBOOK_LOCAL_STORAGE, JSON.stringify(notebookStorage));
+  getStorage().setItem(NOTEBOOK_LOCAL_STORAGE, JSON.stringify(notebookStorage));
 }
 
 export function clearDefaultNotebook() {
   currentNotebookObjectIdentifier = null;
   removeListener();
 
-  window.localStorage.setItem(NOTEBOOK_LOCAL_STORAGE, null);
+  getStorage().setItem(NOTEBOOK_LOCAL_STORAGE, null);
 }
 
 export function getDefaultNotebook() {
-  const notebookStorage = window.localStorage.getItem(NOTEBOOK_LOCAL_STORAGE);
+  const notebookStorage = getStorage().getItem(NOTEBOOK_LOCAL_STORAGE);
 
   return JSON.parse(notebookStorage);
 }

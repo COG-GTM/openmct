@@ -375,12 +375,12 @@ export default {
       });
     },
     retrieveViewPrefs() {
-      return JSON.parse(window.localStorage.getItem(LOCALSTORAGE_VIEW_PREFS)) || {};
+      return JSON.parse(this.openmct.storage.getItem(LOCALSTORAGE_VIEW_PREFS)) || {};
     },
     storeViewPrefs(view) {
       let storedViews = this.retrieveViewPrefs();
       storedViews[this.domainObject.type] = view;
-      window.localStorage.setItem(LOCALSTORAGE_VIEW_PREFS, JSON.stringify(storedViews));
+      this.openmct.storage.setItem(LOCALSTORAGE_VIEW_PREFS, JSON.stringify(storedViews));
     },
     edit() {
       this.openmct.editor.edit();

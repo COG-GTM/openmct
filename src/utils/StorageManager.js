@@ -20,20 +20,36 @@
  * at runtime from the About dialog for additional information.
  *****************************************************************************/
 
-import AnnotationsViewProvider from './annotations/AnnotationsViewProvider.js';
-import ElementsViewProvider from './elements/ElementsViewProvider.js';
-import PlotElementsViewProvider from './elements/PlotElementsViewProvider.js';
-import PropertiesViewProvider from './properties/PropertiesViewProvider.js';
-import StylesInspectorViewProvider from './styles/StylesInspectorViewProvider.js';
-import stylesManager from './styles/StylesManager.js';
+/**
+ * StorageManager provides a namespaced interface to window.localStorage.
+ * When multiple Open MCT instances run on the same host:port, each instance
+ * can use a unique namespace to prevent key collisions.
+ */
+export default class StorageManager {
+  /**
+   * @param {string} namespace - Optional prefix for all keys. When empty,
+   *   keys are stored without a prefix (backward-compatible default).
+   */
+  constructor(namespace = '') {
+    this.namespace = namespace;
+  }
 
-export default function InspectorViewsPlugin() {
-  return function install(openmct) {
-    stylesManager.setStorage(openmct.storage);
-    openmct.inspectorViews.addProvider(new PropertiesViewProvider(openmct));
-    openmct.inspectorViews.addProvider(new ElementsViewProvider(openmct));
-    openmct.inspectorViews.addProvider(new PlotElementsViewProvider(openmct));
-    openmct.inspectorViews.addProvider(new StylesInspectorViewProvider(openmct));
-    openmct.inspectorViews.addProvider(new AnnotationsViewProvider(openmct));
-  };
+  /**
+   * @private
+   */
+  _prefixKey(key) {
+    return this.namespace ? `${this.namespace}:${key}` : key;
+  }
+
+  getItem(key) {
+    return window.localStorage.getItem(this._prefixKey(key));
+  }
+
+  setItem(key, value) {
+    window.localStorage.setItem(this._prefixKey(key), value);
+  }
+
+  removeItem(key) {
+    window.localStorage.removeItem(this._prefixKey(key));
+  }
 }

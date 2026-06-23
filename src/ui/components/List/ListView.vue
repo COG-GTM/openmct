@@ -92,7 +92,7 @@ export default {
     let sortBy = this.defaultSort.property;
     let ascending = this.defaultSort.defaultDirection;
     if (this.storageKey) {
-      let persistedSortOrder = window.localStorage.getItem(this.storageKey);
+      let persistedSortOrder = this.openmct.storage.getItem(this.storageKey);
 
       if (persistedSortOrder) {
         let parsed = JSON.parse(persistedSortOrder);
@@ -150,7 +150,7 @@ export default {
       }
 
       if (this.storageKey) {
-        window.localStorage.setItem(
+        this.openmct.storage.setItem(
           this.storageKey,
           JSON.stringify({
             sortBy: this.sortBy,

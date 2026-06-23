@@ -143,7 +143,7 @@ export default {
       });
     },
     getHistoryFromLocalStorage() {
-      const localStorageHistory = localStorage.getItem(this.storageKey);
+      const localStorageHistory = this.openmct.storage.getItem(this.storageKey);
       const history = localStorageHistory ? JSON.parse(localStorageHistory) : undefined;
       this[this.currentHistory] = history;
 
@@ -157,7 +157,7 @@ export default {
       }
     },
     persistHistoryToLocalStorage() {
-      localStorage.setItem(this.storageKey, JSON.stringify(this[this.currentHistory]));
+      this.openmct.storage.setItem(this.storageKey, JSON.stringify(this[this.currentHistory]));
     },
     updateMode() {
       this.mode = this.openmct.time.getMode();

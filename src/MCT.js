@@ -58,6 +58,7 @@ import ToolbarRegistry from './ui/registries/ToolbarRegistry.js';
 import ViewRegistry from './ui/registries/ViewRegistry.js';
 import ApplicationRouter from './ui/router/ApplicationRouter.js';
 import Browse from './ui/router/Browse.js';
+import StorageManager from './utils/StorageManager.js';
 
 /**
  * Open MCT is an extensible web application for building mission
@@ -105,6 +106,13 @@ export class MCT extends EventEmitter {
     this.defaultClock = 'local';
     this.plugins = plugins;
     this.selection = new Selection(this);
+
+    /**
+     * Namespaced localStorage interface. Pass `storageNamespace` in options
+     * to isolate multiple Open MCT instances on the same origin.
+     * @type {StorageManager}
+     */
+    this.storage = new StorageManager();
 
     /**
      * @type {TimeAPI}
@@ -306,6 +314,15 @@ export class MCT extends EventEmitter {
     this.install(this.plugins.UserIndicator());
     this.install(this.plugins.Gauge());
     this.install(this.plugins.InspectorViews());
+  }
+  /**
+   * Set the storage namespace used to prefix all localStorage keys.
+   * Call this before start() to isolate multiple Open MCT instances
+   * running on the same origin.
+   * @param {string} namespace
+   */
+  setStorageNamespace(namespace) {
+    this.storage = new StorageManager(namespace);
   }
   /**
    * Set path to where assets are hosted.  This should be the path to main.js.

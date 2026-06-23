@@ -141,7 +141,7 @@ export default {
      * and registers composition listeners for composable objects.
      */
     getSavedRecentItems() {
-      const savedRecentsString = localStorage.getItem(LOCAL_STORAGE_KEY__RECENT_OBJECTS);
+      const savedRecentsString = this.openmct.storage.getItem(LOCAL_STORAGE_KEY__RECENT_OBJECTS);
       const savedRecents = savedRecentsString ? JSON.parse(savedRecentsString) : [];
 
       // Get composition collections and add composition listeners for composable objects
@@ -242,7 +242,7 @@ export default {
      * Saves the Recent Objects list to localStorage.
      */
     setSavedRecentItems() {
-      localStorage.setItem(LOCAL_STORAGE_KEY__RECENT_OBJECTS, JSON.stringify(this.recents));
+      this.openmct.storage.setItem(LOCAL_STORAGE_KEY__RECENT_OBJECTS, JSON.stringify(this.recents));
       // send event to parent for enabled button
       if (this.recents.length === 1) {
         this.$emit('set-clear-button-disabled', false);
@@ -274,7 +274,7 @@ export default {
           {
             label: 'Ok',
             callback: () => {
-              localStorage.removeItem(LOCAL_STORAGE_KEY__RECENT_OBJECTS);
+              this.openmct.storage.removeItem(LOCAL_STORAGE_KEY__RECENT_OBJECTS);
               Object.values(this.nameChangeListeners).forEach((unlisten) => {
                 unlisten();
               });

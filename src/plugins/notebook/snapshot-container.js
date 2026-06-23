@@ -42,7 +42,7 @@ export default class SnapshotContainer extends EventEmitter {
   }
 
   getSnapshots() {
-    const snapshots = window.localStorage.getItem(NOTEBOOK_SNAPSHOT_STORAGE) || '[]';
+    const snapshots = this.openmct.storage.getItem(NOTEBOOK_SNAPSHOT_STORAGE) || '[]';
 
     return JSON.parse(snapshots);
   }
@@ -64,7 +64,7 @@ export default class SnapshotContainer extends EventEmitter {
 
   saveSnapshots(snapshots) {
     try {
-      window.localStorage.setItem(NOTEBOOK_SNAPSHOT_STORAGE, JSON.stringify(snapshots));
+      this.openmct.storage.setItem(NOTEBOOK_SNAPSHOT_STORAGE, JSON.stringify(snapshots));
       this.emit(EVENT_SNAPSHOTS_UPDATED, true);
 
       return true;

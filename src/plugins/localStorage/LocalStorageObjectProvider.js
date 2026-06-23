@@ -23,10 +23,10 @@
 import { filter__proto__ } from '../../utils/sanitization.js';
 
 export default class LocalStorageObjectProvider {
-  constructor(spaceKey = 'mct') {
-    this.localStorage = window.localStorage;
-    this.spaceKey = spaceKey;
-    this.initializeSpace(spaceKey);
+  constructor(spaceKey, storage) {
+    this.storage = storage;
+    this.spaceKey = spaceKey || 'mct';
+    this.initializeSpace();
   }
 
   get(identifier) {
@@ -71,7 +71,7 @@ export default class LocalStorageObjectProvider {
    * @private
    */
   persistSpace(space) {
-    this.localStorage.setItem(this.spaceKey, JSON.stringify(space));
+    this.storage.setItem(this.spaceKey, JSON.stringify(space));
   }
 
   isReadOnly() {
@@ -82,7 +82,7 @@ export default class LocalStorageObjectProvider {
    * @private
    */
   getSpace() {
-    return this.localStorage.getItem(this.spaceKey);
+    return this.storage.getItem(this.spaceKey);
   }
 
   /**
@@ -97,7 +97,7 @@ export default class LocalStorageObjectProvider {
    */
   initializeSpace() {
     if (this.isEmpty()) {
-      this.localStorage.setItem(this.spaceKey, JSON.stringify({}));
+      this.storage.setItem(this.spaceKey, JSON.stringify({}));
     }
   }
 
