@@ -177,7 +177,7 @@ export default {
         return null;
       }
 
-      const savedPositionsString = localStorage.getItem(LOCAL_STORAGE_KEY__PANE_POSITIONS);
+      const savedPositionsString = this.openmct.storage.getItem(LOCAL_STORAGE_KEY__PANE_POSITIONS);
       const savedPositions = savedPositionsString ? JSON.parse(savedPositionsString) : {};
 
       return savedPositions[this.localStorageKey];
@@ -209,10 +209,13 @@ export default {
       this.openmct.router.deleteSearchParam(target);
     },
     setSavedPosition(panePosition) {
-      const panePositionsString = localStorage.getItem(LOCAL_STORAGE_KEY__PANE_POSITIONS);
+      const panePositionsString = this.openmct.storage.getItem(LOCAL_STORAGE_KEY__PANE_POSITIONS);
       const panePositions = panePositionsString ? JSON.parse(panePositionsString) : {};
       panePositions[this.localStorageKey] = panePosition;
-      localStorage.setItem(LOCAL_STORAGE_KEY__PANE_POSITIONS, JSON.stringify(panePositions));
+      this.openmct.storage.setItem(
+        LOCAL_STORAGE_KEY__PANE_POSITIONS,
+        JSON.stringify(panePositions)
+      );
     },
     startResizing(event) {
       this.startPosition = this.getPosition(event);

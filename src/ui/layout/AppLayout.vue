@@ -172,7 +172,7 @@
 </template>
 
 <script>
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
+import { computed, inject, nextTick, onMounted, onUnmounted, ref } from 'vue';
 
 import ObjectView from '../components/ObjectView.vue';
 import Inspector from '../inspector/InspectorPanel.vue';
@@ -210,10 +210,11 @@ export default {
   },
   inject: ['openmct'],
   setup() {
+    const openmct = inject('openmct');
     let resizeObserver;
     let element;
 
-    const storedHeadProps = localStorage.getItem(SHELL_HEAD_LOCAL_STORAGE_KEY);
+    const storedHeadProps = openmct.storage.getItem(SHELL_HEAD_LOCAL_STORAGE_KEY);
     const storedHeadPropsObject = JSON.parse(storedHeadProps);
     const storedHeadExpanded = storedHeadPropsObject?.expanded;
     const storedIndicatorsMultiline = storedHeadPropsObject?.multiline;
@@ -245,7 +246,7 @@ export default {
     });
 
     if (initialHeadProps !== storedHeadProps) {
-      localStorage.setItem(SHELL_HEAD_LOCAL_STORAGE_KEY, initialHeadProps);
+      openmct.storage.setItem(SHELL_HEAD_LOCAL_STORAGE_KEY, initialHeadProps);
     }
 
     onMounted(() => {
@@ -302,7 +303,7 @@ export default {
     }
 
     function setLocalStorageShellHead() {
-      localStorage.setItem(
+      openmct.storage.setItem(
         SHELL_HEAD_LOCAL_STORAGE_KEY,
         JSON.stringify({
           expanded: headExpanded.value,

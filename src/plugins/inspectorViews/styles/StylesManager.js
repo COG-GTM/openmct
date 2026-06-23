@@ -8,8 +8,13 @@ const LIMIT = 20;
  * @property {*} property
  */
 class StylesManager extends EventEmitter {
+  setStorage(storage) {
+    this.storage = storage;
+  }
+
   load() {
-    let styles = window.localStorage.getItem(LOCAL_STORAGE_KEY);
+    const store = this.storage || window.localStorage;
+    let styles = store.getItem(LOCAL_STORAGE_KEY);
     styles = styles ? JSON.parse(styles) : [];
 
     return styles;
@@ -95,7 +100,8 @@ class StylesManager extends EventEmitter {
    */
   persist(styles) {
     try {
-      window.localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(styles));
+      const store = this.storage || window.localStorage;
+      store.setItem(LOCAL_STORAGE_KEY, JSON.stringify(styles));
 
       return true;
     } catch (e) {

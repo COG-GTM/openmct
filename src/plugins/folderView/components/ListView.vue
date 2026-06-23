@@ -97,7 +97,7 @@ export default {
   data() {
     let sortBy = 'model.name';
     let ascending = true;
-    let persistedSortOrder = window.localStorage.getItem('openmct-listview-sort-order');
+    let persistedSortOrder = this.openmct.storage.getItem('openmct-listview-sort-order');
 
     if (persistedSortOrder) {
       let parsed = JSON.parse(persistedSortOrder);
@@ -130,7 +130,7 @@ export default {
         this.ascending = defaultDirection;
       }
 
-      window.localStorage.setItem(
+      this.openmct.storage.setItem(
         'openmct-listview-sort-order',
         JSON.stringify({
           sortBy: this.sortBy,

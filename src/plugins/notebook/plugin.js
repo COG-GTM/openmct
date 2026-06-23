@@ -35,6 +35,7 @@ import {
 import NotebookType from './NotebookType.js';
 import NotebookViewProvider from './NotebookViewProvider.js';
 import SnapshotContainer from './snapshot-container.js';
+import { setNotebookStorage } from './utils/notebook-storage.js';
 
 let notebookSnapshotContainer;
 export function getSnapshotContainer(openmct) {
@@ -63,6 +64,8 @@ function installBaseNotebookFunctionality(openmct) {
   if (openmct[NOTEBOOK_BASE_INSTALLED]) {
     return;
   }
+
+  setNotebookStorage(openmct.storage);
 
   const notebookSnapshotImageType = {
     name: 'Notebook Snapshot Image Storage',

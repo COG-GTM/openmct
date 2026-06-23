@@ -1055,7 +1055,7 @@ export default {
         return;
       }
 
-      let openItems = localStorage.getItem(LOCAL_STORAGE_KEY__TREE_EXPANDED);
+      let openItems = this.openmct.storage.getItem(LOCAL_STORAGE_KEY__TREE_EXPANDED);
       this.openTreeItems = openItems ? JSON.parse(openItems) : [];
     },
     setSavedOpenItems() {
@@ -1063,7 +1063,10 @@ export default {
         return;
       }
 
-      localStorage.setItem(LOCAL_STORAGE_KEY__TREE_EXPANDED, JSON.stringify(this.openTreeItems));
+      this.openmct.storage.setItem(
+        LOCAL_STORAGE_KEY__TREE_EXPANDED,
+        JSON.stringify(this.openTreeItems)
+      );
     },
     handleTreeResize() {
       this.calculateHeights();

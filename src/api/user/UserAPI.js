@@ -40,6 +40,7 @@ class UserAPI extends EventEmitter {
 
     this.#openmct = openmct;
     this._provider = undefined;
+    this._storagePersistence = new StoragePersistence(openmct.storage);
 
     this.User = User;
     this.status = new StatusAPI(this, openmct);
@@ -111,7 +112,7 @@ class UserAPI extends EventEmitter {
     }
 
     // get from session storage
-    const sessionStorageValue = StoragePersistence.getActiveRole();
+    const sessionStorageValue = this._storagePersistence.getActiveRole();
 
     return sessionStorageValue;
   }
@@ -121,9 +122,9 @@ class UserAPI extends EventEmitter {
    */
   setActiveRole(role) {
     if (!role) {
-      StoragePersistence.clearActiveRole();
+      this._storagePersistence.clearActiveRole();
     } else {
-      StoragePersistence.setActiveRole(role);
+      this._storagePersistence.setActiveRole(role);
     }
     this.emit('roleChanged', role);
   }
