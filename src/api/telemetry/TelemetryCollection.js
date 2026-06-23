@@ -562,10 +562,8 @@ export default class TelemetryCollection extends EventEmitter {
 
   /**
    * Reset the telemetry data of the collection, and re-request
-   * historical telemetry
+   * historical telemetry and re-initiate subscriptions
    * @private
-   *
-   * @todo handle subscriptions more granually
    */
   _reset() {
     this.boundedTelemetry = [];
@@ -573,6 +571,7 @@ export default class TelemetryCollection extends EventEmitter {
 
     this.emit('clear');
     this._requestHistoricalTelemetry();
+    this._initiateSubscriptionTelemetry();
   }
 
   /**
