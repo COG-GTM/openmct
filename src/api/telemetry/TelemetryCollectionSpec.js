@@ -96,4 +96,25 @@ describe('Telemetry Collection', () => {
 
     expect(telemetryCollection._warn).not.toHaveBeenCalled();
   });
+
+  it('Re-initiates subscription telemetry when _reset is called', () => {
+    mockMetadata.values = [
+      {
+        key: 'utc',
+        name: 'Timestamp',
+        format: 'utc',
+        hints: {
+          domain: 1
+        }
+      }
+    ];
+
+    const telemetryCollection = openmct.telemetry.requestCollection(domainObject);
+    telemetryCollection.load();
+
+    spyOn(telemetryCollection, '_initiateSubscriptionTelemetry');
+    telemetryCollection._reset();
+
+    expect(telemetryCollection._initiateSubscriptionTelemetry).toHaveBeenCalled();
+  });
 });
