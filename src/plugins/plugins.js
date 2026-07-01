@@ -36,6 +36,7 @@ import Clock from './clock/plugin.js';
 import DerivedTelemetryPlugin from './comps/plugin.js';
 import ConditionPlugin from './condition/plugin.js';
 import ConditionWidgetPlugin from './conditionWidget/plugin.js';
+import ConjunctionSSAPlugin from './conjunctionSSA/plugin.js';
 import CorrelationTelemetryPlugin from './correlationTelemetryPlugin/plugin.js';
 import CouchDBSearchFolder from './CouchDBSearchFolder/plugin.js';
 import DefaultRootName from './defaultRootName/plugin.js';
@@ -184,5 +185,6 @@ plugins.InspectorDataVisualization = InspectorDataVisualization;
 plugins.CorrelationTelemetry = CorrelationTelemetryPlugin;
 plugins.DerivedTelemetry = DerivedTelemetryPlugin;
 plugins.EventTimestripPlugin = EventTimestripPlugin;
+plugins.ConjunctionSSA = ConjunctionSSAPlugin;
 
 export default plugins;
