@@ -89,6 +89,15 @@ export default class ConjunctionTelemetryProvider {
   request(domainObject, options = {}) {
     const key = ConjunctionTelemetryProvider.keyFor(domainObject);
     const end = options.end ?? Date.now();
+
+    // LAD-style requests (e.g. condition-set evaluation) only need the most
+    // recent point; compute a single datum at `end` instead of the full range.
+    if (options.strategy === 'latest' || options.size === 1) {
+      const latest = this.engine.getObjectDatum(key, end);
+
+      return Promise.resolve(latest ? [latest] : []);
+    }
+
     const start = options.start ?? end - 60 * 60 * 1000;
 
     const data = [];

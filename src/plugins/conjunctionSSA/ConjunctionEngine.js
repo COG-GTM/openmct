@@ -147,7 +147,7 @@ export default class ConjunctionEngine {
 
     // Fine pass: refine around the coarse minimum (never before the window start).
     const refineStart = Math.max(referenceMs, minTime - COARSE_STEP_MS);
-    const refineEnd = minTime + COARSE_STEP_MS;
+    const refineEnd = Math.min(end, minTime + COARSE_STEP_MS);
     for (let t = refineStart; t <= refineEnd; t += FINE_STEP_MS) {
       const separation = ConjunctionEngine.separation(objA, objB, t);
       if (separation < minSeparation) {

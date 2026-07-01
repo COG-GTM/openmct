@@ -256,8 +256,11 @@ export default class OrbitPropagator {
     let alt = 0;
     for (let iteration = 0; iteration < 10; iteration++) {
       const sinLat = Math.sin(lat);
+      const cosLat = Math.cos(lat);
       const N = RE / Math.sqrt(1 - WGS84_E2 * sinLat * sinLat);
-      alt = p / Math.cos(lat) - N;
+      // Near the poles p (and cos(lat)) approach zero; use the polar-safe form
+      // (project onto the z-axis) to avoid a 0/0 -> NaN altitude.
+      alt = Math.abs(cosLat) > 1e-6 ? p / cosLat - N : Math.abs(zEcef) - N * (1 - WGS84_E2);
       const newLat = Math.atan2(zEcef, p * (1 - (WGS84_E2 * N) / (N + alt)));
       if (Math.abs(newLat - lat) < 1e-11) {
         lat = newLat;
