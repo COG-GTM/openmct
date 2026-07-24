@@ -1,4 +1,27 @@
-import { evaluate } from 'mathjs';
+import { evaluate, validateExpression } from './securedMath.js';
+
+function assertValidCalculationPayload(telemetryForComps, parameters, expression) {
+  if (typeof expression !== 'string') {
+    throw new Error('Invalid payload: expression must be a string');
+  }
+  if (!Array.isArray(parameters)) {
+    throw new Error('Invalid payload: parameters must be an array');
+  }
+  if (typeof telemetryForComps !== 'object' || telemetryForComps === null) {
+    throw new Error('Invalid payload: telemetryForComps must be an object');
+  }
+  parameters.forEach((parameter) => {
+    if (typeof parameter?.name !== 'string' || typeof parameter?.keyString !== 'string') {
+      throw new Error('Invalid payload: malformed parameter');
+    }
+  });
+  // Enforce the allow-list, length, and complexity bounds up front, before any
+  // untrusted expression reaches the mathjs engine.
+  validateExpression(
+    expression,
+    parameters.map((parameter) => parameter.name)
+  );
+}
 
 // eslint-disable-next-line no-undef
 onconnect = function (e) {
@@ -14,9 +37,11 @@ onconnect = function (e) {
       if (type === 'calculateRequest') {
         responseType = 'calculationRequestResult';
         console.debug(`📫 Received new calculation request with callback ID ${callbackID}`);
+        assertValidCalculationPayload(telemetryForComps, parameters, expression);
         result = calculateRequest(telemetryForComps, parameters, expression);
       } else if (type === 'calculateSubscription') {
         responseType = 'calculationSubscriptionResult';
+        assertValidCalculationPayload(telemetryForComps, parameters, expression);
         result = calculateSubscription(telemetryForComps, newTelemetry, parameters, expression);
       } else if (type === 'init') {
         port.postMessage({ type: 'ready' });
