@@ -47,10 +47,10 @@ export function sanitizeCsvFormulaInjection(value) {
 /**
  * Encodes tabular data as CSV and triggers a browser download via FileSaver.
  *
- * This layer does not sanitize cell values or filenames. Any user-controlled text
- * (including Open MCT object `name` fields shown in exported rows) should be passed
- * through {@link sanitizeCsvFormulaInjection} where spreadsheet tools could treat
- * leading `=`, `+`, etc. as formulas.
+ * Every exported cell is passed through {@link sanitizeCsvFormulaInjection} so
+ * user-controlled text (object names, string telemetry values, unit metadata)
+ * cannot be interpreted as a spreadsheet formula (leading `=`, `+`, `-`, `@`,
+ * tab, or CR).
  */
 class CSVExporter {
   /**
@@ -62,7 +62,15 @@ class CSVExporter {
   export(rows, options) {
     let headers = (options && options.headers) || Object.keys(rows[0] || {}).sort();
     let filename = (options && options.filename) || 'export.csv';
-    let csvText = new CSV(rows, { header: headers }).encode();
+    let sanitizedRows = rows.map((row) => {
+      let sanitizedRow = {};
+      headers.forEach((header) => {
+        sanitizedRow[header] = sanitizeCsvFormulaInjection(row[header]);
+      });
+
+      return sanitizedRow;
+    });
+    let csvText = new CSV(sanitizedRows, { header: headers }).encode();
     let blob = new Blob([csvText], { type: 'text/csv' });
     saveAs(blob, filename);
   }
