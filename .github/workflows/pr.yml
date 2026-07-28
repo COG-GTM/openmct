@@ -79,6 +79,16 @@ jobs:
               key: ${{ needs.generate_cache_key.outputs.cache_key }}
         outputs:
             cache_key: ${{ needs.generate_cache_key.outputs.cache_key }}
+    verify-dependency-signatures:
+        runs-on: ubuntu-latest
+        steps:
+          - uses: actions/checkout@v4
+          - uses: actions/setup-node@v4
+            with:
+                node-version: ${{ env.NODE_VERSION }}
+                cache: npm
+          - run: npm ci --no-audit --progress=false
+          - run: npm audit signatures
     lint:
         needs: 
             - build_and_cache_dependencies_if_needed
