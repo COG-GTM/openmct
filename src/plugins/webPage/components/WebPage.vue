@@ -21,12 +21,14 @@
 -->
 <template>
   <div class="l-iframe abs">
-    <iframe :src="url"></iframe>
+    <iframe :src="url" sandbox="allow-scripts allow-forms" referrerpolicy="no-referrer"></iframe>
   </div>
 </template>
 
 <script>
 import { sanitizeUrl } from '@braintree/sanitize-url';
+
+const BLOCKED_URL = 'about:blank';
 
 export default {
   inject: ['openmct', 'domainObject'],
@@ -37,7 +39,18 @@ export default {
   },
   computed: {
     url() {
-      return sanitizeUrl(this.currentDomainObject.url);
+      const url = sanitizeUrl(this.currentDomainObject.url);
+
+      // Only allow http/https absolute urls and same-origin relative urls
+      const isSafeAbsoluteUrl = /^https?:\/\//i.test(url);
+      const isSafeRelativeUrl = /^\/(?!\/)/.test(url);
+      if (!isSafeAbsoluteUrl && !isSafeRelativeUrl) {
+        console.warn('Blocked unsafe URL:', url);
+
+        return BLOCKED_URL;
+      }
+
+      return url;
     }
   }
 };
