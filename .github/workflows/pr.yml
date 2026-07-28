@@ -87,6 +87,9 @@ jobs:
             with:
                 node-version: ${{ env.NODE_VERSION }}
                 cache: npm
+                cache-dependency-path: |
+                    package-lock.json
+                    e2e/package-lock.json
           - run: npm ci --no-audit --progress=false
           - run: npm audit signatures
           - run: npm ci --no-audit --progress=false
