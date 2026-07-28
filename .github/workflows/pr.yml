@@ -79,6 +79,26 @@ jobs:
               key: ${{ needs.generate_cache_key.outputs.cache_key }}
         outputs:
             cache_key: ${{ needs.generate_cache_key.outputs.cache_key }}
+    verify-dependency-signatures:
+        runs-on: ubuntu-latest
+        steps:
+          - uses: actions/checkout@v4
+          - uses: actions/setup-node@v4
+            with:
+                node-version: ${{ env.NODE_VERSION }}
+                cache: npm
+                cache-dependency-path: |
+                    package-lock.json
+                    e2e/package-lock.json
+          - run: npm ci --no-audit --progress=false
+          - run: npm audit signatures
+          # e2e is an npm workspace covered by the root audit above, but its
+          # standalone lockfile (used for standalone e2e installs) is verified
+          # separately so tampering there is also caught.
+          - run: npm ci --no-audit --progress=false
+            working-directory: e2e
+          - run: npm audit signatures
+            working-directory: e2e
     lint:
         needs: 
             - build_and_cache_dependencies_if_needed
