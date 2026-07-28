@@ -89,6 +89,10 @@ jobs:
                 cache: npm
           - run: npm ci --no-audit --progress=false
           - run: npm audit signatures
+          - run: npm ci --no-audit --progress=false
+            working-directory: e2e
+          - run: npm audit signatures
+            working-directory: e2e
     lint:
         needs: 
             - build_and_cache_dependencies_if_needed
