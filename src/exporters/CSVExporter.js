@@ -27,21 +27,28 @@ import { saveAs } from 'file-saver';
  * Neutralize spreadsheet formula injection (CSV injection) for a cell value by
  * prefixing with a single quote when the value could be interpreted as a
  * formula (leading =, +, -, @, tab, CR, optionally after whitespace).
+ * Numeric values (e.g. negative telemetry readings like -273.15) are returned
+ * unchanged so spreadsheets still treat them as numbers.
  * @see https://owasp.org/www-community/attacks/CSV_Injection
  * @param {*} value
  * @returns {*}
  */
 export function sanitizeCsvFormulaInjection(value) {
-  if (value === null || value === undefined) {
+  if (value === null || value === undefined || typeof value === 'number') {
     return value;
   }
 
   const str = String(value);
   if (/^\s*[=+\-@\t\r]/.test(str)) {
+    const trimmed = str.trim();
+    if (trimmed !== '' && Number.isFinite(Number(trimmed))) {
+      return value;
+    }
+
     return `'${str}`;
   }
 
-  return str;
+  return value;
 }
 
 /**
