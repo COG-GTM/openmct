@@ -27,30 +27,37 @@ import { saveAs } from 'file-saver';
  * Neutralize spreadsheet formula injection (CSV injection) for a cell value by
  * prefixing with a single quote when the value could be interpreted as a
  * formula (leading =, +, -, @, tab, CR, optionally after whitespace).
+ * Numeric values (e.g. negative telemetry readings like -273.15) are returned
+ * unchanged so spreadsheets still treat them as numbers.
  * @see https://owasp.org/www-community/attacks/CSV_Injection
  * @param {*} value
  * @returns {*}
  */
 export function sanitizeCsvFormulaInjection(value) {
-  if (value === null || value === undefined) {
+  if (value === null || value === undefined || typeof value === 'number') {
     return value;
   }
 
   const str = String(value);
   if (/^\s*[=+\-@\t\r]/.test(str)) {
+    const trimmed = str.trim();
+    if (trimmed !== '' && Number.isFinite(Number(trimmed))) {
+      return value;
+    }
+
     return `'${str}`;
   }
 
-  return str;
+  return value;
 }
 
 /**
  * Encodes tabular data as CSV and triggers a browser download via FileSaver.
  *
- * This layer does not sanitize cell values or filenames. Any user-controlled text
- * (including Open MCT object `name` fields shown in exported rows) should be passed
- * through {@link sanitizeCsvFormulaInjection} where spreadsheet tools could treat
- * leading `=`, `+`, etc. as formulas.
+ * Every exported cell is passed through {@link sanitizeCsvFormulaInjection} so
+ * user-controlled text (object names, string telemetry values, unit metadata)
+ * cannot be interpreted as a spreadsheet formula (leading `=`, `+`, `-`, `@`,
+ * tab, or CR).
  */
 class CSVExporter {
   /**
@@ -62,7 +69,15 @@ class CSVExporter {
   export(rows, options) {
     let headers = (options && options.headers) || Object.keys(rows[0] || {}).sort();
     let filename = (options && options.filename) || 'export.csv';
-    let csvText = new CSV(rows, { header: headers }).encode();
+    let sanitizedRows = rows.map((row) => {
+      let sanitizedRow = {};
+      headers.forEach((header) => {
+        sanitizedRow[header] = sanitizeCsvFormulaInjection(row[header]);
+      });
+
+      return sanitizedRow;
+    });
+    let csvText = new CSV(sanitizedRows, { header: headers }).encode();
     let blob = new Blob([csvText], { type: 'text/csv' });
     saveAs(blob, filename);
   }
