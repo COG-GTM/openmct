@@ -87,15 +87,22 @@ export default class UDLTelemetryProvider {
   request(domainObject, options) {
     const period =
       domainObject.type === 'udl.conjunctions' ? CONJUNCTION_PERIOD_MS : EPHEMERIS_PERIOD_MS;
-    const size = options.size ?? MAX_REQUEST_DATUMS;
+    const size = Math.min(options.size ?? MAX_REQUEST_DATUMS, MAX_REQUEST_DATUMS);
     const start = Math.floor(options.start / period) * period;
     const requestedCount = Math.floor((options.end - start) / period) + 1;
     const count = Math.min(requestedCount, size);
-    const step = count > 1 ? (options.end - start) / (count - 1) : period;
-
     const data = [];
-    for (let i = 0; i < count; i++) {
-      data.push(this.#datumFor(domainObject, start + Math.round(i * step)));
+
+    if (options.strategy === 'latest') {
+      const alignedEnd = Math.floor(options.end / period) * period;
+      for (let i = count - 1; i >= 0; i--) {
+        data.push(this.#datumFor(domainObject, alignedEnd - i * period));
+      }
+    } else {
+      const step = count > 1 ? (options.end - start) / (count - 1) : period;
+      for (let i = 0; i < count; i++) {
+        data.push(this.#datumFor(domainObject, start + Math.round(i * step)));
+      }
     }
 
     return Promise.resolve(data);
