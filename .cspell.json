@@ -489,7 +489,15 @@
     "requestfinished",
     "LOCF",
     "Unack",
-    "Tabnabbing"
+    "Tabnabbing",
+    "elset",
+    "statevector",
+    "NAVSTAR",
+    "raan",
+    "sbirs",
+    "SBIRS",
+    "FENGYUN",
+    "STARLINK"
   ],
   "dictionaries": ["npm", "softwareTerms", "node", "html", "css", "bash", "en_US", "en-gb", "misc"],
   "ignorePaths": [

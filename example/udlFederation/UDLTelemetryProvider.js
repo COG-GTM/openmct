@@ -24,6 +24,7 @@ import { EARTH_RADIUS_KM, MU_EARTH, SATELLITES } from './satellites.js';
 
 const EPHEMERIS_PERIOD_MS = 1000;
 const CONJUNCTION_PERIOD_MS = 5000;
+const MAX_REQUEST_DATUMS = 50000;
 const SECONDARY_OBJECTS = [
   'COSMOS 2251 DEB',
   'FENGYUN 1C DEB',
@@ -86,9 +87,15 @@ export default class UDLTelemetryProvider {
   request(domainObject, options) {
     const period =
       domainObject.type === 'udl.conjunctions' ? CONJUNCTION_PERIOD_MS : EPHEMERIS_PERIOD_MS;
-    const start = Math.floor(options.start / period) * period;
-    const data = [];
+    const size = options.size ?? MAX_REQUEST_DATUMS;
+    let start = Math.floor(options.start / period) * period;
+    const requestedCount = Math.floor((options.end - start) / period) + 1;
 
+    if (requestedCount > size) {
+      start = options.end - (size - 1) * period;
+    }
+
+    const data = [];
     for (let timestamp = start; timestamp <= options.end; timestamp += period) {
       data.push(this.#datumFor(domainObject, timestamp));
     }

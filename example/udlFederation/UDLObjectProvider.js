@@ -34,28 +34,28 @@ const EPHEMERIS_VALUES = [
     key: 'altitude',
     name: 'Altitude',
     unit: 'km',
-    format: 'float',
+    formatString: '%0.2f',
     hints: { range: 1 }
   },
   {
     key: 'latitude',
     name: 'Latitude',
     unit: 'deg',
-    format: 'float',
+    formatString: '%0.4f',
     hints: { range: 2 }
   },
   {
     key: 'longitude',
     name: 'Longitude',
     unit: 'deg',
-    format: 'float',
+    formatString: '%0.4f',
     hints: { range: 3 }
   },
   {
     key: 'velocity',
     name: 'Velocity',
     unit: 'km/s',
-    format: 'float',
+    formatString: '%0.3f',
     hints: { range: 4 }
   }
 ];
@@ -71,21 +71,19 @@ const CONJUNCTION_VALUES = [
   {
     key: 'pc',
     name: 'Probability of Collision',
-    format: 'float',
     hints: { range: 1 }
   },
   {
     key: 'missDistance',
     name: 'Miss Distance',
     unit: 'km',
-    format: 'float',
+    formatString: '%0.2f',
     hints: { range: 2 }
   },
   {
     key: 'secondary',
     name: 'Secondary Object',
-    format: 'string',
-    hints: { range: 3 }
+    format: 'string'
   }
 ];
 
