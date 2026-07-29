@@ -497,7 +497,9 @@
     "sbirs",
     "SBIRS",
     "FENGYUN",
-    "STARLINK"
+    "STARLINK",
+    "norad",
+    "NORAD"
   ],
   "dictionaries": ["npm", "softwareTerms", "node", "html", "css", "bash", "en_US", "en-gb", "misc"],
   "ignorePaths": [
