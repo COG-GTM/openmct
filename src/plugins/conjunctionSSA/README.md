@@ -21,6 +21,26 @@ Keplerian + J2 propagator (no external dependencies).
   - Tracked object: `utc`, `lat` (deg), `lon` (deg), `alt` (km), `speedKmS`.
   - Pair: `utc`, `missKm`, `tcaOffsetS`, `pc`, `primary`, `secondary`, `pairKey`.
 
+## No-conjunction behaviour
+
+A pair only yields a miss distance if the coarse scan finds a **local minimum**
+of separation inside the look-ahead window. Pairs in very different orbital
+regimes frequently have no such minimum in a 30-minute window.
+
+When that happens the engine emits, for that pair:
+
+- `missKm` — `NaN`
+- `tcaOffsetS` — `NaN`
+- `pc` — `0`
+
+`NaN` is the deliberate sentinel for "no close approach found in this window",
+not an error. Open MCT renders it as a gap in the series. The
+`Worst-Case Conjunction` summary excludes these pairs, so the summary always
+reports a finite miss distance for the closest *converging* pair.
+
+Consumers computing aggregates over pair telemetry must filter `NaN` first —
+`Math.min` over unfiltered values returns `NaN`.
+
 ## Condition Watch thresholds
 
 - **RED — Maneuver review**: `missKm < 5` AND `pc > 1e-4`.
