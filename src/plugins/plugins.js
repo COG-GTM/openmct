@@ -159,6 +159,7 @@ plugins.Espresso = Espresso;
 plugins.Snow = Snow;
 plugins.Condition = ConditionPlugin;
 plugins.ConditionWidget = ConditionWidgetPlugin;
+plugins.ConjunctionSSA = ConjunctionSSAPlugin;
 plugins.URLTimeSettingsSynchronizer = URLTimeSettingsSynchronizer;
 plugins.NotificationIndicator = NotificationIndicator;
 plugins.NewFolderAction = NewFolderAction;
@@ -185,6 +186,5 @@ plugins.InspectorDataVisualization = InspectorDataVisualization;
 plugins.CorrelationTelemetry = CorrelationTelemetryPlugin;
 plugins.DerivedTelemetry = DerivedTelemetryPlugin;
 plugins.EventTimestripPlugin = EventTimestripPlugin;
-plugins.ConjunctionSSA = ConjunctionSSAPlugin;
 
 export default plugins;
