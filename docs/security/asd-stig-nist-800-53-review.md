@@ -184,13 +184,14 @@ Commands run on the remediated branch (Node 24.14.1):
 
 ```text
 npm run lint            # eslint (js + vue) and cspell: clean
-npm test                # karma: TOTAL: 6 FAILED, 1048 SUCCESS
+npm test                # karma: TOTAL: 1061 SUCCESS (67 skipped)
 ```
 
-Baseline on `master` (`a4aae41af`): `TOTAL: 6 FAILED, 969 SUCCESS`. The same
-six specs fail on both runs (Object API search x4, Image Exporter x1,
-URLIndicator default icon class x1); they are unrelated to this change set and
-are not modified by it. The branch adds 79 passing specs and no regressions.
+Baseline on `master` (`a4aae41af`): `TOTAL: 6 FAILED, 969 SUCCESS`. The six
+baseline failures (Object API search x4, Image Exporter x1, URLIndicator
+default icon class x1) are environment-sensitive, are not modified by this
+change set, and did not reproduce on the final branch run. The branch adds 92
+specs and no regressions; the CI `unit-test` job passes.
 
 ### Original prompt
 
