@@ -1388,6 +1388,13 @@ Each record has the shape:
 }
 ```
 
+`outcome` describes the operator action as carried out by the application. For
+actions that persist through `openmct.objects.mutate` (notebook entries), the
+write is queued in the active transaction or saved asynchronously, so a later
+provider failure is reported through the persistence error path rather than by
+rewriting the audit record. Import and export await their writes and report
+`'failure'` when a write is rejected.
+
 Providers receive every completed record and may return a promise. A provider
 that throws or rejects is logged and does not affect the originating action or
 other providers:
