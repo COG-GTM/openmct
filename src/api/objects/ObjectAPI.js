@@ -30,6 +30,7 @@ import InterceptorRegistry from './InterceptorRegistry.js';
 import MutableDomainObject from './MutableDomainObject.js';
 import NamespaceProvider from './NamespaceProvider.js';
 import { isIdentifier, isKeyString } from './object-utils.js';
+import PersistenceError from './PersistenceError.js';
 import RootObjectCompositionProvider from './RootObjectCompositionProvider.js';
 import RootObjectProvider from './RootObjectProvider.js';
 import RootRegistry from './RootRegistry.js';
@@ -110,7 +111,8 @@ export default class ObjectAPI {
     ];
 
     this.errors = {
-      Conflict: ConflictError
+      Conflict: ConflictError,
+      Persistence: PersistenceError
     };
   }
 

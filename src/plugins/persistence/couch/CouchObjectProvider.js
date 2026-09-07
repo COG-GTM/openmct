@@ -230,18 +230,33 @@ class CouchObjectProvider {
       // Network error, CouchDB unreachable.
       if (response === null) {
         this.indicator?.setIndicatorToState(DISCONNECTED);
-        console.error(error.message);
+        console.error('CouchDB request failed (no response):', method, subPath, error);
 
-        throw new Error(`CouchDB Error - No response"`);
+        throw new this.openmct.objects.errors.Persistence(
+          'The object store could not be reached.',
+          { provider: 'couchdb', operation: method, cause: error }
+        );
       } else {
-        if (body?.model && isNotebookOrAnnotationType(body.model)) {
-          // warn since we handle conflicts for notebooks
-          console.warn(error.message);
-        } else {
-          console.error(error.message);
+        const { Conflict, Persistence } = this.openmct.objects.errors;
+        if (error instanceof Conflict || error instanceof Persistence) {
+          if (body?.model && isNotebookOrAnnotationType(body.model)) {
+            // warn since we handle conflicts for notebooks
+            console.warn(error.message);
+          } else {
+            console.error(error.message);
+          }
+
+          throw error;
         }
 
-        throw error;
+        // e.g. a malformed response body; keep the raw details in the log
+        console.error('CouchDB response could not be processed:', method, subPath, error);
+
+        throw new Persistence('The object store returned an unexpected response.', {
+          provider: 'couchdb',
+          operation: method,
+          cause: error
+        });
       }
     }
   }
@@ -257,11 +272,21 @@ class CouchObjectProvider {
       const objectName = JSON.parse(fetchOptions.body)?.model?.name;
       throw new this.openmct.objects.errors.Conflict(`Conflict persisting "${objectName}"`);
     } else if (status >= CouchObjectProvider.HTTP_BAD_REQUEST) {
-      if (!json.error || !json.reason) {
-        throw new Error(`CouchDB Error ${status}`);
-      }
+      // server-supplied error/reason strings are recorded for diagnostics only
+      // and are deliberately kept off the thrown error so they are never shown
+      // to an operator
+      console.error(
+        `CouchDB request failed (HTTP ${status}):`,
+        fetchOptions.method,
+        json?.error ?? '',
+        json?.reason ?? ''
+      );
 
-      throw new Error(`CouchDB Error ${status}: "${json.error} - ${json.reason}"`);
+      throw new this.openmct.objects.errors.Persistence('The object store rejected the request.', {
+        provider: 'couchdb',
+        operation: fetchOptions.method,
+        status
+      });
     }
   }
 

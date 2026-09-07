@@ -94,6 +94,81 @@ describe('The local storage plugin', () => {
     expect(hasPollutedProto).toBeFalse();
   });
 
+  describe('storage failures', () => {
+    let provider;
+
+    beforeEach(() => {
+      provider = openmct.objects.getProvider({ namespace: '', key: 'test-key' });
+      spyOn(console, 'error');
+    });
+
+    it('rejects reads with a generic persistence error when stored data is malformed', async () => {
+      window.localStorage.setItem(space, '{not json');
+
+      let caught;
+      try {
+        await provider.get({ namespace: '', key: 'test-key' });
+      } catch (error) {
+        caught = error;
+      }
+
+      expect(caught).toBeInstanceOf(openmct.objects.errors.Persistence);
+      expect(caught.message).toBe('Browser storage is unavailable or full.');
+      expect(caught.message).not.toContain('JSON');
+      expect(caught.provider).toBe('localStorage');
+      expect(caught.operation).toBe('read');
+      expect(caught.cause).toBeInstanceOf(SyntaxError);
+      expect(console.error).toHaveBeenCalled();
+    });
+
+    it('rejects writes with a generic persistence error when storage throws', async () => {
+      const quotaError = new DOMException('quota exceeded at /internal/path', 'QuotaExceededError');
+      spyOn(Storage.prototype, 'setItem').and.throwError(quotaError);
+
+      let caught;
+      try {
+        await provider.create({
+          identifier: { namespace: '', key: 'test-key' },
+          name: 'A test object'
+        });
+      } catch (error) {
+        caught = error;
+      }
+
+      expect(caught).toBeInstanceOf(openmct.objects.errors.Persistence);
+      expect(caught.message).toBe('Browser storage is unavailable or full.');
+      expect(caught.message).not.toContain('/internal/path');
+      expect(caught.operation).toBe('write');
+      expect(caught.cause).toBe(quotaError);
+      expect(console.error).toHaveBeenCalled();
+    });
+
+    it('throws a generic persistence error from getAllObjects when stored data is malformed', () => {
+      window.localStorage.setItem(space, '{not json');
+
+      expect(() => provider.getAllObjects()).toThrowMatching(
+        (error) =>
+          error instanceof openmct.objects.errors.Persistence &&
+          error.message === 'Browser storage is unavailable or full.'
+      );
+    });
+
+    it('does not throw from the constructor when storage is unavailable', () => {
+      const getItem = spyOn(Storage.prototype, 'getItem').and.throwError(
+        new Error('SecurityError: storage disabled')
+      );
+
+      let instance;
+      expect(() => {
+        instance = new provider.constructor(`${space}-unavailable`);
+      }).not.toThrow();
+      expect(instance).toBeDefined();
+      expect(console.error).toHaveBeenCalled();
+
+      getItem.and.callThrough();
+    });
+  });
+
   afterEach(() => {
     resetApplicationState(openmct);
     resetLocalStorage();

@@ -20,7 +20,7 @@
  * at runtime from the About dialog for additional information.
  *****************************************************************************/
 
-import { createOpenMct, resetApplicationState } from '../../utils/testing.js';
+import { collectAuditRecords, createOpenMct, resetApplicationState } from '../../utils/testing.js';
 
 const faultName = 'super duper fault';
 const aFault = {
@@ -138,5 +138,54 @@ describe('The Fault Management API', () => {
 
     expect(faultManagementProvider.shelveFault).toHaveBeenCalledWith(aFault, aComment);
     expect(shelveResponse.success).toBeTrue();
+  });
+
+  describe('audit records', () => {
+    let audit;
+
+    beforeEach(() => {
+      audit = collectAuditRecords(openmct);
+    });
+
+    afterEach(() => {
+      audit.stop();
+    });
+
+    it('records a successful acknowledgement', async () => {
+      await openmct.faults.acknowledgeFault(aFault, { comment: aComment });
+      const auditRecords = await audit.waitFor(1);
+
+      expect(auditRecords.length).toBe(1);
+      expect(auditRecords[0].action).toBe('fault.acknowledge');
+      expect(auditRecords[0].outcome).toBe('success');
+      expect(auditRecords[0].details.faultName).toBe(faultName);
+    });
+
+    it('records a successful shelve with the shelving metadata', async () => {
+      await openmct.faults.shelveFault(aFault, { shelved: true, shelveDuration: 90000 });
+      const auditRecords = await audit.waitFor(1);
+
+      expect(auditRecords.length).toBe(1);
+      expect(auditRecords[0].action).toBe('fault.shelve');
+      expect(auditRecords[0].outcome).toBe('success');
+      expect(auditRecords[0].details.shelved).toBeTrue();
+      expect(auditRecords[0].details.shelveDuration).toBe(90000);
+    });
+
+    it('records a failed acknowledgement and still rejects', async () => {
+      const providerError = new Error('provider rejected the acknowledgement');
+      spyOn(faultManagementProvider, 'acknowledgeFault').and.returnValue(
+        Promise.reject(providerError)
+      );
+
+      await expectAsync(
+        openmct.faults.acknowledgeFault(aFault, { comment: aComment })
+      ).toBeRejectedWith(providerError);
+      const auditRecords = await audit.waitFor(1);
+
+      expect(auditRecords.length).toBe(1);
+      expect(auditRecords[0].action).toBe('fault.acknowledge');
+      expect(auditRecords[0].outcome).toBe('failure');
+    });
   });
 });

@@ -24,7 +24,14 @@ import { parseKeyString } from 'objectUtils';
 import { filter__proto__ } from 'utils/sanitization';
 import { v4 as uuid } from 'uuid';
 
+import {
+  getImportTreeErrors,
+  IMPORT_REJECTED_MESSAGE,
+  validateImportTree
+} from './importValidation.js';
+
 const IMPORT_FROM_JSON_ACTION_KEY = 'import.JSON';
+const SAVE_FAILED_MESSAGE = 'Import failed: one or more objects could not be saved.';
 
 class ImportFromJSONAction {
   constructor(openmct) {
@@ -74,9 +81,35 @@ class ImportFromJSONAction {
   onSave(object, changes) {
     const selectFile = changes.selectFile;
     const jsonTree = selectFile.body;
-    const objectTree = JSON.parse(jsonTree, filter__proto__);
+    let objectTree;
 
-    this._importObjectTree(object, objectTree);
+    try {
+      objectTree = validateImportTree(JSON.parse(jsonTree, filter__proto__));
+    } catch (error) {
+      this._rejectImport(object, error);
+
+      return Promise.resolve();
+    }
+
+    return this._importObjectTree(object, objectTree);
+  }
+
+  /**
+   * Logs the detailed reason an import was refused and shows a generic
+   * message to the operator.
+   * @private
+   * @param {Object} target the object the import was attempted into
+   * @param {Error} error
+   */
+  _rejectImport(target, error) {
+    console.error('Import from JSON rejected:', error.message, error.errors ?? '');
+    this.openmct.notifications.error(IMPORT_REJECTED_MESSAGE);
+    this.openmct.audit?.record({
+      action: 'import',
+      outcome: 'failure',
+      target: target?.identifier,
+      details: { reason: error.name }
+    });
   }
 
   /**
@@ -312,9 +345,16 @@ class ImportFromJSONAction {
           })
         );
       } catch (error) {
-        this.openmct.notifications.error('Error saving objects');
+        console.error('Import from JSON failed while saving objects:', error);
+        this.openmct.notifications.error(SAVE_FAILED_MESSAGE);
+        this.openmct.audit?.record({
+          action: 'import',
+          outcome: 'failure',
+          target: domainObject.identifier,
+          details: { objectCount: objectsToCreate.length }
+        });
 
-        throw error;
+        return;
       } finally {
         importDialog.dismiss();
       }
@@ -323,6 +363,12 @@ class ImportFromJSONAction {
       let domainObjectKeyString = this.openmct.objects.makeKeyString(domainObject.identifier);
       this.openmct.objects.mutate(rootObj, 'location', domainObjectKeyString);
       compositionCollection.add(rootObj);
+      this.openmct.audit?.record({
+        action: 'import',
+        outcome: 'success',
+        target: domainObject.identifier,
+        details: { objectCount: objectsToCreate.length, rootType: rootObj.type }
+      });
     } else {
       importDialog.dismiss();
       const cannotImportDialog = this.openmct.overlays.dialog({
@@ -365,7 +411,7 @@ class ImportFromJSONAction {
               control: 'file-input',
               required: true,
               text: 'Select File...',
-              validate: this._validateJSON,
+              validate: this._validateJSON.bind(this),
               type: 'application/json'
             }
           ]
@@ -394,14 +440,16 @@ class ImportFromJSONAction {
       success = false;
     }
 
-    if (success && (!json.openmct || !json.rootId)) {
-      success = false;
+    if (success) {
+      const errors = getImportTreeErrors(json);
+      if (errors.length) {
+        console.error('Import from JSON rejected:', errors);
+        success = false;
+      }
     }
 
     if (!success) {
-      this.openmct.notifications.error(
-        'Invalid File: The selected file was either invalid JSON or was not formatted properly for import into Open MCT.'
-      );
+      this.openmct.notifications.error(IMPORT_REJECTED_MESSAGE);
     }
 
     return success;

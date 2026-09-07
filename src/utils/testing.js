@@ -54,6 +54,40 @@ export function createOpenMct(timeSystemOptions = DEFAULT_TIME_OPTIONS) {
   return openmct;
 }
 
+/**
+ * Subscribes to the audit service of the given openmct instance and collects
+ * every record it emits. `waitFor(count)` resolves once at least `count`
+ * records have been collected, which avoids relying on timers (specs may
+ * install a mock clock) to flush the asynchronous audit pipeline.
+ */
+export function collectAuditRecords(openmct) {
+  const records = [];
+  const waiters = [];
+  const stop = openmct.audit.addProvider({
+    record(auditRecord) {
+      records.push(auditRecord);
+      waiters
+        .filter((waiter) => records.length >= waiter.count)
+        .forEach((waiter) => waiter.resolve(records));
+    }
+  });
+
+  return {
+    records,
+    clear() {
+      records.length = 0;
+    },
+    waitFor(count = 1) {
+      if (records.length >= count) {
+        return Promise.resolve(records);
+      }
+
+      return new Promise((resolve) => waiters.push({ count, resolve }));
+    },
+    stop
+  };
+}
+
 export function createMouseEvent(eventName) {
   return new MouseEvent(eventName, {
     bubbles: true,

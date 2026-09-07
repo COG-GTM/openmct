@@ -120,4 +120,27 @@ describe('The create action plugin', () => {
       });
     });
   });
+
+  describe('when saving fails', () => {
+    it('shows a generic message and keeps the raw error in the console', async () => {
+      const rawError = new Error('ECONNREFUSED 10.0.0.5:5984 /internal/path');
+      spyOn(console, 'error');
+      spyOn(openmct.notifications, 'error');
+      spyOn(openmct.objects, 'save').and.returnValue(Promise.reject(rawError));
+
+      const createAction = openmct.actions.getAction(CREATE_ACTION_KEY);
+      createAction.domainObject = openmct.objects.toMutable({
+        name: 'Unnamed Folder',
+        type: 'folder',
+        identifier: { key: 'new-folder', namespace: '' }
+      });
+      await createAction._onSave({
+        name: 'test',
+        location: [{ identifier: { key: 'mock-folder', namespace: '' }, type: 'folder' }]
+      });
+
+      expect(openmct.notifications.error).toHaveBeenCalledOnceWith('Error saving objects');
+      expect(console.error).toHaveBeenCalledWith(rawError);
+    });
+  });
 });

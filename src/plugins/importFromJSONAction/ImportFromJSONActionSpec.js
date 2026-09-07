@@ -20,7 +20,7 @@
  * at runtime from the About dialog for additional information.
  *****************************************************************************/
 
-import { createOpenMct, resetApplicationState } from 'utils/testing';
+import { collectAuditRecords, createOpenMct, resetApplicationState } from 'utils/testing';
 
 let openmct;
 let importFromJSONAction;
@@ -208,5 +208,170 @@ describe('The import JSON action', function () {
     } catch (error) {
       fail(error);
     }
+  });
+
+  describe('input validation before persistence', () => {
+    let audit;
+
+    beforeEach(() => {
+      audit = collectAuditRecords(openmct);
+      spyOn(console, 'error');
+      spyOn(openmct.objects, 'save').and.callFake((model) => Promise.resolve(model));
+      spyOn(openmct.notifications, 'error');
+      spyOn(openmct.overlays, 'progressDialog').and.returnValue({
+        updateProgress: () => {},
+        dismiss: () => {}
+      });
+    });
+
+    afterEach(() => {
+      audit.stop();
+    });
+
+    function invalidTrees() {
+      const key = 'c28d230d-e909-4a3e-9840-d9ef469dda70';
+      function base() {
+        return {
+          openmct: {
+            [key]: {
+              identifier: { key, namespace: '' },
+              name: 'Unnamed Folder',
+              type: 'folder',
+              composition: [],
+              location: 'mine'
+            }
+          },
+          rootId: key
+        };
+      }
+
+      const reservedKey = base();
+      reservedKey.openmct[key].configuration = { constructor: { prototype: {} } };
+
+      const badIdentifier = base();
+      badIdentifier.openmct[key].identifier = { key: 'someone-else', namespace: '' };
+
+      const badType = base();
+      badType.openmct[key].type = '<img src=x onerror=alert(1)>';
+
+      const badComposition = base();
+      badComposition.openmct[key].composition = [{ nope: true }];
+
+      const badRoot = base();
+      badRoot.rootId = 'missing';
+
+      return { reservedKey, badIdentifier, badType, badComposition, badRoot };
+    }
+
+    Object.entries({
+      'a reserved key': 'reservedKey',
+      'a mismatched identifier': 'badIdentifier',
+      'a malformed type': 'badType',
+      'a malformed composition reference': 'badComposition',
+      'an unknown rootId': 'badRoot'
+    }).forEach(([label, treeName]) => {
+      it(`rejects a payload with ${label} without persisting anything`, async () => {
+        const body = JSON.stringify(invalidTrees()[treeName]);
+
+        await importFromJSONAction.onSave(folderObject, { selectFile: { body } });
+
+        expect(openmct.objects.save).not.toHaveBeenCalled();
+        expect(openmct.notifications.error).toHaveBeenCalledOnceWith(
+          'Import failed: the selected file is not a valid Open MCT export or contains unsupported content.'
+        );
+        expect(console.error).toHaveBeenCalled();
+      });
+    });
+
+    it('emits a failure audit record when a payload is rejected', async () => {
+      const body = JSON.stringify(invalidTrees().badType);
+
+      await importFromJSONAction.onSave(folderObject, { selectFile: { body } });
+      const auditRecords = await audit.waitFor(1);
+
+      expect(auditRecords.length).toBe(1);
+      expect(auditRecords[0].action).toBe('import');
+      expect(auditRecords[0].outcome).toBe('failure');
+      expect(auditRecords[0].target).toBe(folderObject.identifier.key);
+      expect(auditRecords[0].details.reason).toBe('ImportValidationError');
+    });
+
+    it('emits a success audit record when a payload is imported', async () => {
+      const key = 'c28d230d-e909-4a3e-9840-d9ef469dda70';
+      const body = JSON.stringify({
+        openmct: {
+          [key]: {
+            identifier: { key, namespace: '' },
+            name: 'Unnamed Folder',
+            type: 'folder',
+            composition: [],
+            location: 'mine'
+          }
+        },
+        rootId: key
+      });
+      spyOn(openmct.composition, 'get').and.returnValue({ add: () => {} });
+
+      await importFromJSONAction.onSave(folderObject, { selectFile: { body } });
+      const auditRecords = await audit.waitFor(1);
+
+      expect(openmct.objects.save).toHaveBeenCalled();
+      expect(auditRecords.length).toBe(1);
+      expect(auditRecords[0].action).toBe('import');
+      expect(auditRecords[0].outcome).toBe('success');
+      expect(auditRecords[0].details.objectCount).toBe(1);
+      expect(auditRecords[0].details.rootType).toBe('folder');
+    });
+
+    it('shows a generic message and logs the raw error when saving fails', async () => {
+      const key = 'c28d230d-e909-4a3e-9840-d9ef469dda70';
+      const body = JSON.stringify({
+        openmct: {
+          [key]: {
+            identifier: { key, namespace: '' },
+            name: 'Unnamed Folder',
+            type: 'folder',
+            composition: [],
+            location: 'mine'
+          }
+        },
+        rootId: key
+      });
+      const rawError = new Error('ECONNREFUSED 10.0.0.5:5984 /internal/path');
+      openmct.objects.save.and.returnValue(Promise.reject(rawError));
+
+      await importFromJSONAction.onSave(folderObject, { selectFile: { body } });
+      const auditRecords = await audit.waitFor(1);
+
+      expect(openmct.notifications.error).toHaveBeenCalledOnceWith(
+        'Import failed: one or more objects could not be saved.'
+      );
+      const shownMessages = openmct.notifications.error.calls.allArgs().flat().join(' ');
+      expect(shownMessages).not.toContain('ECONNREFUSED');
+      expect(console.error).toHaveBeenCalledWith(
+        'Import from JSON failed while saving objects:',
+        rawError
+      );
+      expect(auditRecords.length).toBe(1);
+      expect(auditRecords[0].outcome).toBe('failure');
+    });
+
+    it('rejects invalid files in the form validator with a generic message', () => {
+      const validator = importFromJSONAction._validateJSON.bind(importFromJSONAction);
+
+      expect(validator({ value: { body: 'not json' } })).toBeFalse();
+      expect(validator({ value: { body: '{"openmct":{},"rootId":"x"}' } })).toBeFalse();
+      expect(
+        validator({
+          value: { body: '{"__proto__":{"polluted":true},"openmct":{},"rootId":"x"}' }
+        })
+      ).toBeFalse();
+      expect(openmct.notifications.error).toHaveBeenCalledTimes(3);
+      openmct.notifications.error.calls.allArgs().forEach(([message]) => {
+        expect(message).toBe(
+          'Import failed: the selected file is not a valid Open MCT export or contains unsupported content.'
+        );
+      });
+    });
   });
 });

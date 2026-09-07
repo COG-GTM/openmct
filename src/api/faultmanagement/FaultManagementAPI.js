@@ -119,7 +119,9 @@ export default class FaultManagementAPI {
    * @returns {Promise.<T>} - A promise that resolves when the fault is acknowledged.
    */
   acknowledgeFault(fault, ackData) {
-    return this.provider.acknowledgeFault(fault, ackData);
+    return this.#audited('fault.acknowledge', fault, () =>
+      this.provider.acknowledgeFault(fault, ackData)
+    );
   }
 
   /**
@@ -130,7 +132,46 @@ export default class FaultManagementAPI {
    * @returns {Promise.<T>} - A promise that resolves when the fault is shelved.
    */
   shelveFault(fault, shelveData) {
-    return this.provider.shelveFault(fault, shelveData);
+    return this.#audited(
+      'fault.shelve',
+      fault,
+      () => this.provider.shelveFault(fault, shelveData),
+      {
+        shelved: shelveData?.shelved ?? true,
+        shelveDuration: shelveData?.shelveDuration ?? null
+      }
+    );
+  }
+
+  /**
+   * Runs a provider operation and emits an audit record with its outcome.
+   * @param {string} action
+   * @param {Fault} fault
+   * @param {() => Promise<*> | *} operation
+   * @param {Object} [extraDetails]
+   * @returns {Promise<*>}
+   */
+  async #audited(action, fault, operation, extraDetails = {}) {
+    // providers may hand back either the fault itself or a { fault } wrapper
+    const source = fault?.fault ?? fault ?? {};
+    const details = {
+      faultId: source.id ?? null,
+      faultName: source.name ?? null,
+      faultNamespace: source.namespace ?? null,
+      severity: source.severity ?? null,
+      ...extraDetails
+    };
+
+    try {
+      const result = await operation();
+      this.openmct.audit?.record({ action, outcome: 'success', details });
+
+      return result;
+    } catch (error) {
+      this.openmct.audit?.record({ action, outcome: 'failure', details });
+
+      throw error;
+    }
   }
 
   /**

@@ -200,11 +200,24 @@ const SANITIZATION_SCHEMA = {
     'abbr'
   ],
   allowedAttributes: {
-    a: ['href', 'target', 'class', 'title'],
+    a: ['href', 'target', 'rel', 'class', 'title'],
     code: ['class'],
     abbr: ['title']
-  }
+  },
+  allowedSchemes: ['http', 'https', 'mailto'],
+  allowProtocolRelative: false
 };
+
+const ALLOWED_LINK_PROTOCOLS = new Set(['http:', 'https:']);
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 const UNKNOWN_USER = 'Unknown';
 
@@ -457,20 +470,28 @@ export default {
     },
     validateLink(options) {
       const { href, text } = options;
+      const safeText = escapeHtml(text);
       try {
-        const domain = new URL(href).hostname;
-        const urlIsWhitelisted = this.urlWhitelist.some((partialDomain) => {
-          return domain.endsWith(partialDomain);
-        });
+        const url = new URL(href);
+        const domain = url.hostname.toLowerCase();
+        const urlIsWhitelisted =
+          ALLOWED_LINK_PROTOCOLS.has(url.protocol) &&
+          this.urlWhitelist.some((allowedDomain) => {
+            const normalized = String(allowedDomain).toLowerCase().replace(/^\.+/, '');
+
+            return (
+              normalized.length > 0 && (domain === normalized || domain.endsWith(`.${normalized}`))
+            );
+          });
 
         if (!urlIsWhitelisted) {
-          return text;
+          return safeText;
         }
 
-        return `<a class="c-hyperlink" target="_blank" href="${href}">${text}</a>`;
+        return `<a class="c-hyperlink" target="_blank" rel="noopener noreferrer" href="${escapeHtml(url.href)}">${safeText}</a>`;
       } catch (error) {
         // had error parsing this URL, just return the text
-        return text;
+        return safeText;
       }
     },
     cancelEditMode(event) {
@@ -546,8 +567,8 @@ export default {
           this.entry.embeds.push(imageEmbed);
           this.manageEmbedLayout();
         } catch (error) {
-          this.openmct.notifications.error(`Unable to add image: ${error.message} `);
           console.error(`Problem embedding remote image`, error);
+          this.openmct.notifications.error('Unable to add image.');
         }
       } else if (snapshotId.length) {
         // snapshot object

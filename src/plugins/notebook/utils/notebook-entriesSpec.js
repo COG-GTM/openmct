@@ -19,7 +19,7 @@
  * this source code distribution or the Licensing information page available
  * at runtime from the About dialog for additional information.
  *****************************************************************************/
-import { createOpenMct, resetApplicationState } from 'utils/testing';
+import { collectAuditRecords, createOpenMct, resetApplicationState } from 'utils/testing';
 
 import * as NotebookEntries from './notebook-entries.js';
 
@@ -231,5 +231,80 @@ describe('Notebook Entries:', () => {
     );
 
     expect(afterEntries).toEqual(undefined);
+  });
+
+  describe('audit records', () => {
+    let audit;
+
+    beforeEach(() => {
+      audit = collectAuditRecords(openmct);
+    });
+
+    afterEach(() => {
+      audit.stop();
+    });
+
+    it('addNotebookEntry emits a notebook.entry.create record', async () => {
+      const id = await NotebookEntries.addNotebookEntry(
+        openmct,
+        notebookDomainObject,
+        notebookStorage
+      );
+      const auditRecords = await audit.waitFor(1);
+
+      expect(auditRecords.length).toBe(1);
+      expect(auditRecords[0].action).toBe('notebook.entry.create');
+      expect(auditRecords[0].outcome).toBe('success');
+      expect(auditRecords[0].target).toBe('notebook');
+      expect(auditRecords[0].details).toEqual({
+        entryId: id,
+        sectionId: selectedSection.id,
+        pageId: selectedPage.id,
+        embedCount: 0
+      });
+    });
+
+    it('auditNotebookEntryDeletion emits a notebook.entry.delete record for one entry', async () => {
+      NotebookEntries.auditNotebookEntryDeletion(
+        openmct,
+        notebookDomainObject,
+        'entry-1',
+        selectedSection,
+        selectedPage
+      );
+      const auditRecords = await audit.waitFor(1);
+
+      expect(auditRecords.length).toBe(1);
+      expect(auditRecords[0].action).toBe('notebook.entry.delete');
+      expect(auditRecords[0].target).toBe('notebook');
+      expect(auditRecords[0].details).toEqual({
+        entryId: 'entry-1',
+        sectionId: selectedSection.id,
+        pageId: selectedPage.id
+      });
+    });
+
+    it('deleteNotebookEntries emits a notebook.entry.delete record with the removed count', async () => {
+      await NotebookEntries.addNotebookEntry(openmct, notebookDomainObject, notebookStorage);
+      await NotebookEntries.addNotebookEntry(openmct, notebookDomainObject, notebookStorage);
+      await audit.waitFor(2);
+      audit.clear();
+
+      NotebookEntries.deleteNotebookEntries(
+        openmct,
+        notebookDomainObject,
+        selectedSection,
+        selectedPage
+      );
+      const auditRecords = await audit.waitFor(1);
+
+      expect(auditRecords.length).toBe(1);
+      expect(auditRecords[0].action).toBe('notebook.entry.delete');
+      expect(auditRecords[0].details).toEqual({
+        sectionId: selectedSection.id,
+        pageId: selectedPage.id,
+        entryCount: 2
+      });
+    });
   });
 });

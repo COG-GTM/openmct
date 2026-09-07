@@ -120,12 +120,24 @@ class UserAPI extends EventEmitter {
    * @returns {undefined}
    */
   setActiveRole(role) {
+    const previousRole = StoragePersistence.getActiveRole() ?? null;
+    const newRole = role || null;
+
     if (!role) {
       StoragePersistence.clearActiveRole();
     } else {
       StoragePersistence.setActiveRole(role);
     }
     this.emit('roleChanged', role);
+
+    // roles are only meaningful (and only reported) once a user provider exists
+    if (this.hasProvider() && newRole !== previousRole) {
+      this.#openmct.audit?.record({
+        action: 'user.role.change',
+        outcome: 'success',
+        details: { previousRole, newRole }
+      });
+    }
   }
 
   /**

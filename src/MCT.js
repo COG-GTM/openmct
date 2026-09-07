@@ -24,6 +24,7 @@ import { createApp, markRaw } from 'vue';
 
 import ActionsAPI from './api/actions/ActionsAPI.js';
 import AnnotationAPI from './api/annotation/AnnotationAPI.js';
+import AuditLogger from './api/audit/AuditLogger.js';
 import BrandingAPI from './api/Branding.js';
 import CompositionAPI from './api/composition/CompositionAPI.js';
 import EditorAPI from './api/Editor.js';
@@ -194,6 +195,14 @@ export class MCT extends EventEmitter {
      * @type {UserAPI}
      */
     this.user = new UserAPI(this);
+
+    /**
+     * Structured audit records (who / what / when / outcome) for operator
+     * actions. Providers subscribe to receive records; nothing is persisted
+     * or transmitted by default.
+     * @type {AuditLogger}
+     */
+    this.audit = new AuditLogger(this);
 
     /**
      * An interface for managing notifications and alerts.

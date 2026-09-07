@@ -69,7 +69,7 @@ export async function updateNotebookImageDomainObject(openmct, identifier, fullS
     openmct.objects.endTransaction();
   } catch (error) {
     console.error(`${error.message} -- unable to save image`, error);
-    openmct.notifications.error(`${error.message} -- unable to save image`);
+    openmct.notifications.error('Unable to save image.');
   }
 }
 

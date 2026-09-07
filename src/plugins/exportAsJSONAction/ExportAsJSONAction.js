@@ -99,9 +99,16 @@ class ExportAsJSONAction {
         this.dialog.dismiss();
         this.dialog = null;
         this.#resetCounts();
+        console.error('Export as JSON failed:', error);
         this.#openmct.notifications.error({
           title: 'Export as JSON failed',
-          message: error.message
+          message: 'The selected object could not be exported.'
+        });
+        this.#openmct.audit?.record({
+          action: 'export',
+          outcome: 'failure',
+          target: root.identifier,
+          details: { rootType: root.type }
         });
       });
   }
@@ -381,6 +388,15 @@ class ExportAsJSONAction {
    */
   saveAs(completedTree) {
     this.JSONExportService.export(completedTree, { filename: this.root.name + '.json' });
+    this.#openmct.audit?.record({
+      action: 'export',
+      outcome: 'success',
+      target: this.root.identifier,
+      details: {
+        rootType: this.root.type,
+        objectCount: Object.keys(completedTree.openmct).length
+      }
+    });
   }
   /**
    * @private

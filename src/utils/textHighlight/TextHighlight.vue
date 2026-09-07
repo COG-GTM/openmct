@@ -45,19 +45,39 @@ export default {
     }
   },
   computed: {
+    /**
+     * Wraps matches of `highlight` found in the text content of `text` (which
+     * is expected to be already-sanitized HTML) in a span. The highlight term is
+     * treated as a literal string, and the wrapped content is the matched text
+     * itself, so no markup from the search term reaches the rendered HTML.
+     */
     highlightedText() {
       const highlight = this.highlight;
 
-      const normalCharsRegex = /^[^A-Za-z0-9]+$/g;
+      if (!highlight) {
+        return this.text;
+      }
 
-      const newHighLight = normalCharsRegex.test(highlight) ? `\\${highlight}` : highlight;
-
-      const highlightRegex = new RegExp(`(?<!<[^>]*)(${newHighLight})`, 'gi');
-
-      const replacement = `<span class="${this.highlightClass}">${highlight}</span>`;
+      // text content inside sanitized HTML is entity-encoded, so encode the
+      // search term the same way before looking for it
+      const term = escapeRegExp(escapeHtml(highlight));
+      const highlightRegex = new RegExp(`(?<!<[^>]*)(${term})`, 'gi');
+      const replacement = `<span class="${escapeHtml(this.highlightClass)}">$1</span>`;
 
       return this.text.replace(highlightRegex, replacement);
     }
   }
 };
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
 </script>

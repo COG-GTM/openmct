@@ -20,18 +20,35 @@
  * at runtime from the About dialog for additional information.
  *****************************************************************************/
 
+import PersistenceError from '../../api/objects/PersistenceError.js';
 import { filter__proto__ } from '../../utils/sanitization.js';
+
+const PROVIDER = 'localStorage';
 
 export default class LocalStorageObjectProvider {
   constructor(spaceKey = 'mct') {
     this.localStorage = window.localStorage;
     this.spaceKey = spaceKey;
-    this.initializeSpace(spaceKey);
+
+    try {
+      this.initializeSpace(spaceKey);
+    } catch (error) {
+      // reads and writes will surface a generic PersistenceError later on
+      this.#persistenceError('initialize', error);
+    }
   }
 
   get(identifier) {
-    if (this.getSpaceAsObject()[identifier.key] !== undefined) {
-      const persistedModel = this.getSpaceAsObject()[identifier.key];
+    let space;
+
+    try {
+      space = this.getSpaceAsObject();
+    } catch (error) {
+      return Promise.reject(this.#persistenceError('read', error));
+    }
+
+    if (space?.[identifier.key] !== undefined) {
+      const persistedModel = space[identifier.key];
       const domainObject = {
         identifier,
         ...persistedModel
@@ -44,7 +61,11 @@ export default class LocalStorageObjectProvider {
   }
 
   getAllObjects() {
-    return this.getSpaceAsObject();
+    try {
+      return this.getSpaceAsObject();
+    } catch (error) {
+      throw this.#persistenceError('read', error);
+    }
   }
 
   create(object) {
@@ -59,12 +80,33 @@ export default class LocalStorageObjectProvider {
    * @private
    */
   persistObject(domainObject) {
-    let space = this.getSpaceAsObject();
-    space[domainObject.identifier.key] = domainObject;
+    try {
+      let space = this.getSpaceAsObject();
+      space[domainObject.identifier.key] = domainObject;
 
-    this.persistSpace(space);
+      this.persistSpace(space);
+    } catch (error) {
+      return Promise.reject(this.#persistenceError('write', error));
+    }
 
     return Promise.resolve(true);
+  }
+
+  /**
+   * Records the raw storage failure for diagnostics and returns an error whose
+   * message is safe to surface to an operator.
+   * @param {string} operation
+   * @param {unknown} error
+   * @returns {PersistenceError}
+   */
+  #persistenceError(operation, error) {
+    console.error(`Local storage ${operation} failed for space "${this.spaceKey}":`, error);
+
+    return new PersistenceError('Browser storage is unavailable or full.', {
+      provider: PROVIDER,
+      operation,
+      cause: error
+    });
   }
 
   /**

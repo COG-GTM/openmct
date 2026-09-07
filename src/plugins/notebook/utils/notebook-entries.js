@@ -152,7 +152,7 @@ export function createNewImageEmbed(image, openmct, imageName = '') {
         resolve(createdEmbed);
       } catch (error) {
         console.error(`${error.message} - unable to embed image ${imageName}`, error);
-        openmct.notifications.error(`${error.message} -- unable to embed image ${imageName}`);
+        openmct.notifications.error('Unable to embed image.');
       }
     };
 
@@ -239,8 +239,40 @@ export async function addNotebookEntry(
 
   addDefaultClass(domainObject, openmct);
   mutateObject(openmct, domainObject, 'configuration.entries', newEntries);
+  openmct.audit?.record({
+    action: 'notebook.entry.create',
+    outcome: 'success',
+    target: domainObject.identifier,
+    details: {
+      entryId: id,
+      sectionId: notebookStorage.defaultSectionId ?? null,
+      pageId: notebookStorage.defaultPageId ?? null,
+      embedCount: embedsNormalized?.length ?? 0
+    }
+  });
 
   return id;
+}
+
+/**
+ * Emits an audit record for the removal of a single notebook entry.
+ * @param {import('openmct').OpenMCT} openmct
+ * @param {import('openmct').DomainObject} domainObject the notebook
+ * @param {string} entryId
+ * @param {{id: string} | undefined} section
+ * @param {{id: string} | undefined} page
+ */
+export function auditNotebookEntryDeletion(openmct, domainObject, entryId, section, page) {
+  openmct.audit?.record({
+    action: 'notebook.entry.delete',
+    outcome: 'success',
+    target: domainObject.identifier,
+    details: {
+      entryId,
+      sectionId: section?.id ?? null,
+      pageId: page?.id ?? null
+    }
+  });
 }
 
 export function getNotebookEntries(domainObject, selectedSection, selectedPage) {
@@ -294,7 +326,17 @@ export function deleteNotebookEntries(openmct, domainObject, selectedSection, se
 
   // Delete entire section
   if (!selectedPage) {
+    const sectionEntryCount = Object.values(entries[selectedSection.id] ?? {}).reduce(
+      (count, pageEntries) => count + (Array.isArray(pageEntries) ? pageEntries.length : 0),
+      0
+    );
     delete entries[selectedSection.id];
+    openmct.audit?.record({
+      action: 'notebook.entry.delete',
+      outcome: 'success',
+      target: domainObject.identifier,
+      details: { sectionId: selectedSection.id, pageId: null, entryCount: sectionEntryCount }
+    });
 
     return;
   }
@@ -304,9 +346,18 @@ export function deleteNotebookEntries(openmct, domainObject, selectedSection, se
     return;
   }
 
+  const pageEntryCount = Array.isArray(section[selectedPage.id])
+    ? section[selectedPage.id].length
+    : 0;
   delete entries[selectedSection.id][selectedPage.id];
 
   mutateObject(openmct, domainObject, 'configuration.entries', entries);
+  openmct.audit?.record({
+    action: 'notebook.entry.delete',
+    outcome: 'success',
+    target: domainObject.identifier,
+    details: { sectionId: selectedSection.id, pageId: selectedPage.id, entryCount: pageEntryCount }
+  });
 }
 
 export function mutateObject(openmct, object, key, value) {

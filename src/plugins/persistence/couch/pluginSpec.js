@@ -191,6 +191,93 @@ describe('the plugin', () => {
       window.EventSource = cachedEventSource;
     });
   });
+  describe('normalizes failures into generic persistence errors', () => {
+    beforeEach(() => {
+      spyOn(console, 'error');
+    });
+
+    async function requestError(method, body) {
+      try {
+        await provider.request('some-value', method, body);
+      } catch (error) {
+        return error;
+      }
+
+      throw new Error('expected the request to fail');
+    }
+
+    it('when the server cannot be reached', async () => {
+      const rawError = new TypeError('Failed to fetch http://internal-host:5984/openmct');
+      fetch.and.throwError(rawError);
+
+      const error = await requestError('GET');
+
+      expect(error).toBeInstanceOf(openmct.objects.errors.Persistence);
+      expect(error.message).toBe('The object store could not be reached.');
+      expect(error.message).not.toContain('internal-host');
+      expect(error.provider).toBe('couchdb');
+      expect(error.operation).toBe('GET');
+      expect(error.cause).toBe(rawError);
+      expect(console.error).toHaveBeenCalled();
+    });
+
+    it('when the server responds with an error status', async () => {
+      fetch.and.returnValue(
+        Promise.resolve({
+          status: 500,
+          json: () => ({
+            error: 'internal_server_error',
+            reason: 'Database file /var/lib/couchdb/openmct.couch is corrupt'
+          })
+        })
+      );
+
+      const error = await requestError('GET');
+
+      expect(error).toBeInstanceOf(openmct.objects.errors.Persistence);
+      expect(error.message).toBe('The object store rejected the request.');
+      expect(error.message).not.toContain('/var/lib/couchdb');
+      expect(error.message).not.toContain('internal_server_error');
+      expect(error.status).toBe(500);
+      expect(console.error).toHaveBeenCalledWith(
+        'CouchDB request failed (HTTP 500):',
+        'GET',
+        'internal_server_error',
+        'Database file /var/lib/couchdb/openmct.couch is corrupt'
+      );
+    });
+
+    it('when the response body cannot be parsed', async () => {
+      const rawError = new SyntaxError('Unexpected token < in JSON at position 0');
+      fetch.and.returnValue(
+        Promise.resolve({
+          status: 200,
+          json: () => Promise.reject(rawError)
+        })
+      );
+
+      const error = await requestError('GET');
+
+      expect(error).toBeInstanceOf(openmct.objects.errors.Persistence);
+      expect(error.message).toBe('The object store returned an unexpected response.');
+      expect(error.cause).toBe(rawError);
+    });
+
+    it('while preserving conflict errors so callers can resolve them', async () => {
+      fetch.and.returnValue(
+        Promise.resolve({
+          status: 409,
+          json: () => ({ error: 'conflict', reason: 'Document update conflict.' })
+        })
+      );
+
+      const error = await requestError('PUT', { model: { name: 'Some object', type: 'folder' } });
+
+      expect(error).toBeInstanceOf(openmct.objects.errors.Conflict);
+      expect(error).not.toBeInstanceOf(openmct.objects.errors.Persistence);
+    });
+  });
+
   describe('batches requests', () => {
     let mockPromise;
     beforeEach(() => {

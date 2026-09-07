@@ -489,7 +489,15 @@
     "requestfinished",
     "LOCF",
     "Unack",
-    "Tabnabbing"
+    "Tabnabbing",
+    "STIG",
+    "DISA",
+    "ISSM",
+    "remediations",
+    "rethrew",
+    "notexample",
+    "Deployers",
+    "stig"
   ],
   "dictionaries": ["npm", "softwareTerms", "node", "html", "css", "bash", "en_US", "en-gb", "misc"],
   "ignorePaths": [

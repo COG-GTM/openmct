@@ -386,4 +386,68 @@ describe('Export as JSON plugin', () => {
 
     exportAsJSONAction.invoke([parent]);
   });
+
+  describe('audit and error handling', () => {
+    let leaf;
+
+    function waitForAuditRecord() {
+      return new Promise((resolve) => {
+        const unsubscribe = openmct.audit.addProvider({
+          record: (auditRecord) => {
+            unsubscribe();
+            resolve(auditRecord);
+          }
+        });
+      });
+    }
+
+    beforeEach(() => {
+      leaf = {
+        composition: [],
+        identifier: { key: 'leaf', namespace: '' },
+        name: 'Leaf',
+        type: 'folder',
+        modified: 1503598132428,
+        location: 'mine',
+        persisted: 1503598132428
+      };
+      spyOn(openmct.composition, 'get').and.returnValue({ load: () => Promise.resolve([]) });
+      spyOn(exportAsJSONAction.JSONExportService, 'export');
+    });
+
+    it('emits a success audit record when an export completes', async () => {
+      const pendingRecord = waitForAuditRecord();
+
+      exportAsJSONAction.invoke([leaf]);
+      const auditRecord = await pendingRecord;
+
+      expect(exportAsJSONAction.JSONExportService.export).toHaveBeenCalled();
+      expect(auditRecord.action).toBe('export');
+      expect(auditRecord.outcome).toBe('success');
+      expect(auditRecord.target).toBe('leaf');
+      expect(auditRecord.details).toEqual({ rootType: 'folder', objectCount: 1 });
+    });
+
+    it('shows a generic message, logs the raw error and emits a failure record when export fails', async () => {
+      const rawError = new Error('CouchDB at 10.0.0.5:5984 returned 500');
+      openmct.composition.get.and.returnValue({ load: () => Promise.reject(rawError) });
+      spyOn(console, 'error');
+      spyOn(openmct.notifications, 'error');
+      const pendingRecord = waitForAuditRecord();
+
+      exportAsJSONAction.invoke([leaf]);
+      const auditRecord = await pendingRecord;
+
+      expect(exportAsJSONAction.JSONExportService.export).not.toHaveBeenCalled();
+      expect(console.error).toHaveBeenCalledWith('Export as JSON failed:', rawError);
+      expect(openmct.notifications.error).toHaveBeenCalledOnceWith({
+        title: 'Export as JSON failed',
+        message: 'The selected object could not be exported.'
+      });
+      expect(JSON.stringify(openmct.notifications.error.calls.allArgs())).not.toContain('10.0.0.5');
+      expect(auditRecord.action).toBe('export');
+      expect(auditRecord.outcome).toBe('failure');
+      expect(auditRecord.target).toBe('leaf');
+    });
+  });
 });

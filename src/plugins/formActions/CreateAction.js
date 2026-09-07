@@ -91,7 +91,7 @@ class CreateAction extends PropertiesAction {
       this.openmct.notifications.info('Save successful');
     } catch (err) {
       console.error(err);
-      this.openmct.notifications.error(`Error saving objects: ${err}`);
+      this.openmct.notifications.error('Error saving objects');
     } finally {
       this.openmct.objects.destroyMutable(parentDomainObject);
       dialog.dismiss();

@@ -21,7 +21,7 @@
  *****************************************************************************/
 
 import ExampleUserProvider from '../../../example/exampleUser/ExampleUserProvider.js';
-import { createOpenMct, resetApplicationState } from '../../utils/testing.js';
+import { collectAuditRecords, createOpenMct, resetApplicationState } from '../../utils/testing.js';
 import { MULTIPLE_PROVIDER_ERROR } from './constants.js';
 
 describe('The User API', () => {
@@ -60,6 +60,76 @@ describe('The User API', () => {
       openmct.user.setProvider(new ExampleUserProvider(openmct));
 
       expect(openmct.user.hasProvider()).toBeTrue();
+    });
+  });
+
+  describe('with regard to role changes', () => {
+    let audit;
+
+    beforeEach(async () => {
+      const provider = new ExampleUserProvider(openmct);
+      provider.autoLogin('operator-one');
+      openmct.user.setProvider(provider);
+      // createOpenMct() seeds an active role; clear it and drain the resulting
+      // record before observing so each test starts from a null role
+      const seededRole = openmct.user.getActiveRole();
+      const setupRecords = collectAuditRecords(openmct);
+      openmct.user.setActiveRole(undefined);
+      if (seededRole !== null) {
+        await setupRecords.waitFor(1);
+      }
+      setupRecords.stop();
+      audit = collectAuditRecords(openmct);
+    });
+
+    afterEach(() => {
+      audit.stop();
+      openmct.user.setActiveRole(undefined);
+    });
+
+    it('emits an audit record with the previous and new role', async () => {
+      openmct.user.setActiveRole('flight');
+      openmct.user.setActiveRole('test-conductor');
+      const auditRecords = await audit.waitFor(2);
+
+      expect(auditRecords.map((auditRecord) => auditRecord.action)).toEqual([
+        'user.role.change',
+        'user.role.change'
+      ]);
+      expect(auditRecords[0].outcome).toBe('success');
+      expect(auditRecords[0].actor).toEqual({
+        id: jasmine.any(String),
+        username: 'operator-one',
+        role: 'flight'
+      });
+      expect(auditRecords[0].details).toEqual({ previousRole: null, newRole: 'flight' });
+      expect(auditRecords[1].details).toEqual({
+        previousRole: 'flight',
+        newRole: 'test-conductor'
+      });
+    });
+
+    it('records clearing the active role', async () => {
+      openmct.user.setActiveRole('flight');
+      openmct.user.setActiveRole(undefined);
+      const auditRecords = await audit.waitFor(2);
+
+      expect(auditRecords[1].details).toEqual({ previousRole: 'flight', newRole: null });
+      expect(openmct.user.getActiveRole()).toBeNull();
+    });
+
+    it('does not emit a record when the role is unchanged', async () => {
+      openmct.user.setActiveRole(undefined);
+      openmct.user.setActiveRole('flight');
+      openmct.user.setActiveRole('flight');
+      // a marker record is dispatched after anything already in flight
+      await openmct.audit.record({ action: 'test.marker' });
+
+      expect(audit.records.map((auditRecord) => auditRecord.action)).toEqual([
+        'user.role.change',
+        'test.marker'
+      ]);
+      expect(audit.records[0].details).toEqual({ previousRole: null, newRole: 'flight' });
     });
   });
 });

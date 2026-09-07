@@ -173,6 +173,7 @@ import objectLink from '../../../ui/mixins/object-link.js';
 import { isNotebookViewType, RESTRICTED_NOTEBOOK_TYPE } from '../notebook-constants.js';
 import {
   addNotebookEntry,
+  auditNotebookEntryDeletion,
   createNewEmbed,
   createNewImageEmbed,
   getEntryPosById,
@@ -582,6 +583,13 @@ export default {
                 this.updateEntries(entries);
                 this.filterAndSortEntries();
                 this.removeAnnotations(entryId);
+                auditNotebookEntryDeletion(
+                  this.openmct,
+                  this.domainObject,
+                  entryId,
+                  this.selectedSection,
+                  this.selectedPage
+                );
               } else {
                 this.cancelTransaction();
               }
@@ -665,8 +673,8 @@ export default {
           const imageEmbed = await createNewImageEmbed(imageData, this.openmct);
           this.newEntry([imageEmbed]);
         } catch (error) {
-          this.openmct.notifications.alert(`Unable to add image: ${error.message} `);
           console.error(`Problem embedding remote image`, error);
+          this.openmct.notifications.alert('Unable to add image.');
         }
       } else if (snapshotId.length) {
         // snapshot object
