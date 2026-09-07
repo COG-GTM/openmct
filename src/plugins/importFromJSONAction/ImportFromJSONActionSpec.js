@@ -380,11 +380,17 @@ describe('The import JSON action', function () {
       expect(shownMessages).not.toContain('ECONNREFUSED');
       expect(console.error).toHaveBeenCalledWith(
         'Import from JSON failed while saving 1 of 1 objects:',
-        [rawError]
+        [rawError],
+        'Unlinked objects left in storage:',
+        []
       );
       expect(auditRecords.length).toBe(1);
       expect(auditRecords[0].outcome).toBe('failure');
-      expect(auditRecords[0].details).toEqual({ objectCount: 1, failedCount: 1 });
+      expect(auditRecords[0].details).toEqual({
+        objectCount: 1,
+        failedCount: 1,
+        unlinkedKeys: []
+      });
     });
 
     it('waits for every save to settle and does not link the root when one save fails', async () => {
@@ -434,7 +440,12 @@ describe('The import JSON action', function () {
         'Import failed: one or more objects could not be saved.'
       );
       expect(auditRecords[0].outcome).toBe('failure');
-      expect(auditRecords[0].details).toEqual({ objectCount: 2, failedCount: 1 });
+      expect(auditRecords[0].details.objectCount).toBe(2);
+      expect(auditRecords[0].details.failedCount).toBe(1);
+      expect(auditRecords[0].details.unlinkedKeys.length).toBe(1);
+      expect(auditRecords[0].details.unlinkedKeys[0]).toBe(
+        openmct.objects.makeKeyString(openmct.objects.save.calls.argsFor(0)[0].identifier)
+      );
     });
 
     it('rejects invalid files in the form validator with a generic message and a failure audit record', async () => {

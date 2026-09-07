@@ -135,12 +135,14 @@ export function createNewImageEmbed(image, openmct, imageName = '') {
     }
     reader.onerror = () => fail(reader.error);
     reader.onload = async () => {
+      const blobUrl = URL.createObjectURL(image);
       try {
         const base64Data = reader.result;
-        const blobUrl = URL.createObjectURL(image);
+        // build the thumbnail first so a bad image never leaves an unreferenced
+        // full-size image object in storage
+        const imageThumbnailURL = await getThumbnailURLFromImageUrl(blobUrl);
         const imageDomainObject = createNotebookImageDomainObject(base64Data);
         await saveNotebookImageDomainObject(openmct, imageDomainObject);
-        const imageThumbnailURL = await getThumbnailURLFromImageUrl(blobUrl);
 
         const snapshot = {
           fullSizeImageObjectIdentifier: imageDomainObject.identifier,
@@ -162,6 +164,8 @@ export function createNewImageEmbed(image, openmct, imageName = '') {
         resolve(createdEmbed);
       } catch (error) {
         fail(error);
+      } finally {
+        URL.revokeObjectURL(blobUrl);
       }
     };
 

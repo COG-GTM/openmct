@@ -346,16 +346,28 @@ class ImportFromJSONAction {
         );
         const failures = results.filter((result) => result.status === 'rejected');
         if (failures.length > 0) {
+          // there is no delete in the object API, so objects whose save succeeded
+          // stay in storage; they are never linked, and their keys are recorded so
+          // an administrator can locate them
+          const persistedKeys = objectsToCreate
+            .filter((objectToCreate, index) => results[index].status === 'fulfilled')
+            .map((objectToCreate) => this.openmct.objects.makeKeyString(objectToCreate.identifier));
           console.error(
             `Import from JSON failed while saving ${failures.length} of ${objectsToCreate.length} objects:`,
-            failures.map((failure) => failure.reason)
+            failures.map((failure) => failure.reason),
+            'Unlinked objects left in storage:',
+            persistedKeys
           );
           this.openmct.notifications.error(SAVE_FAILED_MESSAGE);
           this.openmct.audit?.record({
             action: 'import',
             outcome: 'failure',
             target: domainObject.identifier,
-            details: { objectCount: objectsToCreate.length, failedCount: failures.length }
+            details: {
+              objectCount: objectsToCreate.length,
+              failedCount: failures.length,
+              unlinkedKeys: persistedKeys
+            }
           });
 
           return;

@@ -234,18 +234,59 @@ describe('Notebook Entries:', () => {
   });
 
   describe('createNewImageEmbed', () => {
+    // 1x1 transparent PNG
+    const PNG_BYTES = Uint8Array.from(
+      atob(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
+      ),
+      (char) => char.charCodeAt(0)
+    );
+
+    beforeEach(() => {
+      spyOn(URL, 'revokeObjectURL').and.callThrough();
+    });
+
     it('settles with undefined and shows a generic message when persistence fails', async () => {
       const rawError = new Error('CouchDB at 10.0.0.5:5984 returned 500');
       openmct.objects.save = () => Promise.reject(rawError);
       spyOn(console, 'error');
       spyOn(openmct.notifications, 'error');
-      const image = new Blob(['not-really-an-image'], { type: 'image/png' });
+      const image = new Blob([PNG_BYTES], { type: 'image/png' });
 
       const embed = await NotebookEntries.createNewImageEmbed(image, openmct, 'x.png');
 
       expect(embed).toBeUndefined();
       expect(console.error).toHaveBeenCalledWith(jasmine.stringContaining('x.png'), rawError);
       expect(openmct.notifications.error).toHaveBeenCalledOnceWith('Unable to embed image.');
+      expect(URL.revokeObjectURL).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not store the image when the thumbnail cannot be generated', async () => {
+      openmct.objects.save = jasmine.createSpy('save').and.returnValue(Promise.resolve(true));
+      spyOn(console, 'error');
+      spyOn(openmct.notifications, 'error');
+      const image = new Blob(['not-really-an-image'], { type: 'image/png' });
+
+      const embed = await NotebookEntries.createNewImageEmbed(image, openmct, 'z.png');
+
+      expect(embed).toBeUndefined();
+      expect(openmct.objects.save).not.toHaveBeenCalled();
+      expect(openmct.notifications.error).toHaveBeenCalledOnceWith('Unable to embed image.');
+      expect(URL.revokeObjectURL).toHaveBeenCalledTimes(1);
+    });
+
+    it('stores the image and resolves with an embed when the image is valid', async () => {
+      openmct.objects.save = jasmine.createSpy('save').and.returnValue(Promise.resolve(true));
+      const image = new Blob([PNG_BYTES], { type: 'image/png' });
+
+      const embed = await NotebookEntries.createNewImageEmbed(image, openmct, 'ok.png');
+
+      expect(openmct.objects.save).toHaveBeenCalledTimes(1);
+      expect(embed.snapshot.fullSizeImageObjectIdentifier).toEqual(
+        openmct.objects.save.calls.argsFor(0)[0].identifier
+      );
+      expect(embed.snapshot.thumbnailImage.src).toMatch(/^data:image\/png/);
+      expect(URL.revokeObjectURL).toHaveBeenCalledTimes(1);
     });
 
     it('settles with undefined when the image cannot be read', async () => {

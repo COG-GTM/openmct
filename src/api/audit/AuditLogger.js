@@ -137,10 +137,12 @@ export default class AuditLogger extends EventEmitter {
     }
 
     const outcome = OUTCOMES.has(input.outcome) ? input.outcome : 'success';
+    // stamp the time of the action itself, before any asynchronous identity lookup
+    const timestamp = new Date().toISOString();
     const record = {
       id: uuid(),
       source: SOURCE,
-      timestamp: new Date().toISOString(),
+      timestamp,
       action: input.action,
       outcome,
       actor: await this.#resolveActor(),
