@@ -660,18 +660,24 @@ export default {
                 this.openmct,
                 imageData?.name
               );
-              embeds.push(imageEmbed);
+              if (imageEmbed) {
+                embeds.push(imageEmbed);
+              }
             }
           })
         );
-        this.newEntry(embeds);
+        if (embeds.length) {
+          this.newEntry(embeds);
+        }
       } else if (imageUrl) {
         // remote image dropped (URL)
         try {
           const response = await fetch(imageUrl);
           const imageData = await response.blob();
           const imageEmbed = await createNewImageEmbed(imageData, this.openmct);
-          this.newEntry([imageEmbed]);
+          if (imageEmbed) {
+            this.newEntry([imageEmbed]);
+          }
         } catch (error) {
           console.error(`Problem embedding remote image`, error);
           this.openmct.notifications.alert('Unable to add image.');

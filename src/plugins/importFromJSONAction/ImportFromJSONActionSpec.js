@@ -379,11 +379,62 @@ describe('The import JSON action', function () {
       const shownMessages = openmct.notifications.error.calls.allArgs().flat().join(' ');
       expect(shownMessages).not.toContain('ECONNREFUSED');
       expect(console.error).toHaveBeenCalledWith(
-        'Import from JSON failed while saving objects:',
-        rawError
+        'Import from JSON failed while saving 1 of 1 objects:',
+        [rawError]
       );
       expect(auditRecords.length).toBe(1);
       expect(auditRecords[0].outcome).toBe('failure');
+      expect(auditRecords[0].details).toEqual({ objectCount: 1, failedCount: 1 });
+    });
+
+    it('waits for every save to settle and does not link the root when one save fails', async () => {
+      const rootKey = 'c28d230d-e909-4a3e-9840-d9ef469dda70';
+      const childKey = '0a2b9ef1-2f4d-4a3c-9b1e-2f6a2f5c1d11';
+      const body = JSON.stringify({
+        openmct: {
+          [rootKey]: {
+            identifier: { key: rootKey, namespace: '' },
+            name: 'Root',
+            type: 'folder',
+            composition: [{ key: childKey, namespace: '' }],
+            location: 'mine'
+          },
+          [childKey]: {
+            identifier: { key: childKey, namespace: '' },
+            name: 'Child',
+            type: 'folder',
+            composition: [],
+            location: rootKey
+          }
+        },
+        rootId: rootKey
+      });
+      let rootSaveSettled = false;
+      openmct.objects.save.and.callFake((model) => {
+        if (model.name === 'Child') {
+          return Promise.reject(new Error('quota exceeded'));
+        }
+
+        return new Promise((resolve) =>
+          setTimeout(() => {
+            rootSaveSettled = true;
+            resolve(true);
+          }, 20)
+        );
+      });
+      const compositionCollection = jasmine.createSpyObj('composition', ['add']);
+      spyOn(openmct.composition, 'get').and.returnValue(compositionCollection);
+
+      await importFromJSONAction.onSave(folderObject, { selectFile: { body } });
+      const auditRecords = await audit.waitFor(1);
+
+      expect(rootSaveSettled).toBe(true);
+      expect(compositionCollection.add).not.toHaveBeenCalled();
+      expect(openmct.notifications.error).toHaveBeenCalledOnceWith(
+        'Import failed: one or more objects could not be saved.'
+      );
+      expect(auditRecords[0].outcome).toBe('failure');
+      expect(auditRecords[0].details).toEqual({ objectCount: 2, failedCount: 1 });
     });
 
     it('rejects invalid files in the form validator with a generic message and a failure audit record', async () => {

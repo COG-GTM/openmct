@@ -449,5 +449,40 @@ describe('Export as JSON plugin', () => {
       expect(auditRecord.outcome).toBe('failure');
       expect(auditRecord.target).toBe('leaf');
     });
+
+    it('propagates a descendant load failure to the generic handler and closes the dialog', async () => {
+      const child = {
+        composition: [],
+        identifier: { key: 'child', namespace: '' },
+        name: 'Child',
+        type: 'folder',
+        location: 'leaf',
+        persisted: 1503598132428
+      };
+      const rawError = new Error('CouchDB at 10.0.0.5:5984 returned 500');
+      openmct.composition.get.and.callFake((parent) => ({
+        load: () =>
+          parent.identifier.key === 'child' ? Promise.reject(rawError) : Promise.resolve([child])
+      }));
+      const dismiss = jasmine.createSpy('dismiss');
+      spyOn(openmct.overlays, 'progressDialog').and.returnValue({
+        show: () => {},
+        updateProgress: () => {},
+        dismiss
+      });
+      spyOn(console, 'error');
+      spyOn(openmct.notifications, 'error');
+      const pendingRecord = waitForAuditRecord();
+
+      exportAsJSONAction.invoke([leaf]);
+      const auditRecord = await pendingRecord;
+
+      expect(exportAsJSONAction.JSONExportService.export).not.toHaveBeenCalled();
+      expect(dismiss).toHaveBeenCalledTimes(1);
+      expect(console.error).toHaveBeenCalledWith('Export as JSON failed:', rawError);
+      expect(openmct.notifications.error).toHaveBeenCalledTimes(1);
+      expect(auditRecord.outcome).toBe('failure');
+      expect(auditRecord.target).toBe('leaf');
+    });
   });
 });

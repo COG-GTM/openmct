@@ -123,6 +123,9 @@ export default class AuditLogger extends EventEmitter {
    * resolution or in a provider are logged to the console and do not
    * interrupt the operator action being audited.
    *
+   * The returned promise settles once every provider has accepted or
+   * rejected the record, so callers that need confirmed delivery can await it.
+   *
    * @param {AuditRecordInput} input
    * @returns {Promise<AuditRecord | undefined>} the dispatched record
    */
@@ -145,7 +148,7 @@ export default class AuditLogger extends EventEmitter {
       details: input.details ? { ...input.details } : {}
     };
 
-    this.#dispatch(record);
+    await this.#dispatch(record);
 
     return record;
   }
@@ -198,15 +201,19 @@ export default class AuditLogger extends EventEmitter {
 
   /**
    * @param {AuditRecord} record
+   * @returns {Promise<void>} settles when every provider has settled
    */
   #dispatch(record) {
+    const deliveries = [];
     for (const provider of this.#providers) {
       try {
         const result = provider.record(record);
         if (typeof result?.then === 'function') {
-          result.then(undefined, (error) => {
-            console.error('Audit provider failed to accept record:', error);
-          });
+          deliveries.push(
+            result.then(undefined, (error) => {
+              console.error('Audit provider failed to accept record:', error);
+            })
+          );
         }
       } catch (error) {
         console.error('Audit provider failed to accept record:', error);
@@ -219,5 +226,7 @@ export default class AuditLogger extends EventEmitter {
     } catch (error) {
       console.error('Audit record listener failed:', error);
     }
+
+    return Promise.all(deliveries).then(() => undefined);
   }
 }

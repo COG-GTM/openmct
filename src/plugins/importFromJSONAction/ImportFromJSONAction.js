@@ -329,8 +329,12 @@ class ImportFromJSONAction {
 
       try {
         let persistedObjects = 0;
-        // make saving objects objects 20% of the progress bar
-        await Promise.all(
+        // make saving objects objects 20% of the progress bar.
+        // Saves are not transactional across providers; wait for every save to settle
+        // so no write is still in flight when failure is reported. The imported root
+        // is only linked into the target composition below, after all saves succeed,
+        // so partially saved objects remain unreachable from the object tree.
+        const results = await Promise.allSettled(
           objectsToCreate.map(async (objectToCreate) => {
             persistedObjects++;
             const percentPersisted =
@@ -340,17 +344,22 @@ class ImportFromJSONAction {
             await this._instantiate(objectToCreate);
           })
         );
-      } catch (error) {
-        console.error('Import from JSON failed while saving objects:', error);
-        this.openmct.notifications.error(SAVE_FAILED_MESSAGE);
-        this.openmct.audit?.record({
-          action: 'import',
-          outcome: 'failure',
-          target: domainObject.identifier,
-          details: { objectCount: objectsToCreate.length }
-        });
+        const failures = results.filter((result) => result.status === 'rejected');
+        if (failures.length > 0) {
+          console.error(
+            `Import from JSON failed while saving ${failures.length} of ${objectsToCreate.length} objects:`,
+            failures.map((failure) => failure.reason)
+          );
+          this.openmct.notifications.error(SAVE_FAILED_MESSAGE);
+          this.openmct.audit?.record({
+            action: 'import',
+            outcome: 'failure',
+            target: domainObject.identifier,
+            details: { objectCount: objectsToCreate.length, failedCount: failures.length }
+          });
 
-        return;
+          return;
+        }
       } finally {
         importDialog.dismiss();
       }

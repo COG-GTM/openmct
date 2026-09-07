@@ -163,13 +163,41 @@ describe('The AuditLogger', () => {
       openmct.audit.addProvider(healthy);
 
       const auditRecord = await openmct.audit.record({ action: 'a' });
-      await Promise.resolve();
 
       expect(healthy.record).toHaveBeenCalledOnceWith(auditRecord);
       expect(console.error).toHaveBeenCalledWith(
         'Audit provider failed to accept record:',
         rejection
       );
+    });
+
+    it('resolves record() only after asynchronous providers have settled', async () => {
+      let finishDelivery;
+      let delivered = false;
+      openmct.audit.addProvider({
+        record: () =>
+          new Promise((resolve) => {
+            finishDelivery = () => {
+              delivered = true;
+              resolve();
+            };
+          })
+      });
+
+      let settled = false;
+      const pending = openmct.audit.record({ action: 'a' }).then((auditRecord) => {
+        settled = true;
+
+        return auditRecord;
+      });
+      await new Promise((resolve) => setTimeout(resolve));
+
+      expect(settled).toBe(false);
+      finishDelivery();
+      const auditRecord = await pending;
+
+      expect(delivered).toBe(true);
+      expect(auditRecord.action).toBe('a');
     });
 
     it('isolates a throwing record listener from providers and the caller', async () => {

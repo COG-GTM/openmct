@@ -34,7 +34,7 @@ export function getThumbnailURLFromCanvas(canvas, size = DEFAULT_SIZE) {
 }
 
 export function getThumbnailURLFromImageUrl(imageUrl, size = DEFAULT_SIZE) {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const image = new Image();
 
     const canvas = document.createElement('canvas');
@@ -44,6 +44,9 @@ export function getThumbnailURLFromImageUrl(imageUrl, size = DEFAULT_SIZE) {
     image.onload = function () {
       canvas.getContext('2d').drawImage(image, 0, 0, size.width, size.height);
       resolve(canvas.toDataURL('image/png'));
+    };
+    image.onerror = function () {
+      reject(new Error('Unable to load image for thumbnail'));
     };
 
     image.src = imageUrl;

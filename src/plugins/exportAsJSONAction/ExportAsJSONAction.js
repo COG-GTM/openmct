@@ -190,11 +190,13 @@ class ExportAsJSONAction {
         this.tree[originalKeyString] = child;
       }
 
-      this.#write(child).then(() => {
+      return this.#write(child).then(() => {
         this.exportedCount++;
         this.#updateProgress();
       });
     }
+
+    return Promise.resolve();
   }
 
   /**

@@ -1403,7 +1403,10 @@ openmct.audit.hasProviders(); // boolean
 ```
 
 Plugins may also emit their own records; `outcome` defaults to `'success'` and
-`target` accepts an identifier or key string:
+`target` accepts an identifier or key string. The returned promise resolves with
+the dispatched record once every provider has settled (accepted or rejected it),
+so awaiting it gives confirmed delivery; built-in hooks do not await it so that
+audit delivery never delays the operator action:
 
 ```javascript
 await openmct.audit.record({

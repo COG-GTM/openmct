@@ -73,6 +73,27 @@ describe('Import-from-JSON validation', () => {
     expect(getImportTreeErrors(tree)).toEqual([]);
   });
 
+  it('accepts plugin-style type keys, namespaced identifiers and deep plugin configuration', () => {
+    const tree = validTree();
+    const pluginKey = 'plugin:9f6c2d21-5ec8-434c-9fe8-31614ae6d7e6';
+    let deepConfiguration = { leaf: true };
+    for (let level = 0; level < 40; level++) {
+      deepConfiguration = { nested: deepConfiguration };
+    }
+
+    tree.openmct[CHILD_KEY].type = 'telemetry.plot.overlay';
+    tree.openmct[ROOT_KEY].composition.push({ namespace: 'plugin', key: CHILD_KEY });
+    tree.openmct[pluginKey] = {
+      identifier: { namespace: 'plugin', key: CHILD_KEY },
+      name: 'Plugin Object',
+      type: 'example.state-generator_v2-Custom',
+      location: ROOT_KEY,
+      configuration: deepConfiguration
+    };
+
+    expect(getImportTreeErrors(tree)).toEqual([]);
+  });
+
   it('rejects payloads that are not objects', () => {
     [null, undefined, 'string', 42, [], true].forEach((payload) => {
       expect(getImportTreeErrors(payload).length).toBeGreaterThan(0);

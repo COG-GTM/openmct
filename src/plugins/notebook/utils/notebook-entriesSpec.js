@@ -233,6 +233,32 @@ describe('Notebook Entries:', () => {
     expect(afterEntries).toEqual(undefined);
   });
 
+  describe('createNewImageEmbed', () => {
+    it('settles with undefined and shows a generic message when persistence fails', async () => {
+      const rawError = new Error('CouchDB at 10.0.0.5:5984 returned 500');
+      openmct.objects.save = () => Promise.reject(rawError);
+      spyOn(console, 'error');
+      spyOn(openmct.notifications, 'error');
+      const image = new Blob(['not-really-an-image'], { type: 'image/png' });
+
+      const embed = await NotebookEntries.createNewImageEmbed(image, openmct, 'x.png');
+
+      expect(embed).toBeUndefined();
+      expect(console.error).toHaveBeenCalledWith(jasmine.stringContaining('x.png'), rawError);
+      expect(openmct.notifications.error).toHaveBeenCalledOnceWith('Unable to embed image.');
+    });
+
+    it('settles with undefined when the image cannot be read', async () => {
+      spyOn(console, 'error');
+      spyOn(openmct.notifications, 'error');
+
+      const embed = await NotebookEntries.createNewImageEmbed('not a blob', openmct, 'y.png');
+
+      expect(embed).toBeUndefined();
+      expect(openmct.notifications.error).toHaveBeenCalledOnceWith('Unable to embed image.');
+    });
+  });
+
   describe('audit records', () => {
     let audit;
 

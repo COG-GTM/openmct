@@ -28,6 +28,13 @@ import { makeKeyString } from 'objectUtils';
  */
 const RESERVED_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
+/**
+ * Type keys are interpolated into CSS class names (`is-object-type-<type>`) and
+ * used as registry lookup keys, so they are restricted to the characters every
+ * type registered in this repository already uses. Identifier and depth bounds
+ * exist to cap the work a hostile file can demand; they are an order of
+ * magnitude above what exported object trees produce.
+ */
 const TYPE_KEY_PATTERN = /^[A-Za-z0-9._-]{1,128}$/;
 const MAX_IDENTIFIER_LENGTH = 512;
 const MAX_ERRORS = 20;

@@ -440,6 +440,9 @@ export default {
         Array.from(clipboardImages).map(async (clipboardImage) => {
           const imageFile = clipboardImage.getAsFile();
           const imageEmbed = await createNewImageEmbed(imageFile, this.openmct, imageFile?.name);
+          if (!imageEmbed) {
+            return;
+          }
 
           if (!this.entry.embeds) {
             this.entry.embeds = [];
@@ -547,6 +550,9 @@ export default {
                 this.openmct,
                 imageData?.name
               );
+              if (!imageEmbed) {
+                return;
+              }
               if (!this.entry.embeds) {
                 this.entry.embeds = [];
               }
@@ -561,6 +567,9 @@ export default {
           const response = await fetch(imageUrl);
           const imageData = await response.blob();
           const imageEmbed = await createNewImageEmbed(imageData, this.openmct);
+          if (!imageEmbed) {
+            return;
+          }
           if (!this.entry.embeds) {
             this.entry.embeds = [];
           }

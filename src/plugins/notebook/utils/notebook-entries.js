@@ -121,10 +121,20 @@ export function getHistoricLinkInFixedMode(openmct, bounds, historicLink) {
   return params.join('&');
 }
 
+/**
+ * Resolves with the new embed, or with `undefined` after notifying the operator
+ * when the image could not be read, stored or reduced to a thumbnail.
+ */
 export function createNewImageEmbed(image, openmct, imageName = '') {
   return new Promise((resolve) => {
     const reader = new FileReader();
-    reader.onloadend = async () => {
+    function fail(error) {
+      console.error(`${error?.message} - unable to embed image ${imageName}`, error);
+      openmct.notifications.error('Unable to embed image.');
+      resolve(undefined);
+    }
+    reader.onerror = () => fail(reader.error);
+    reader.onload = async () => {
       try {
         const base64Data = reader.result;
         const blobUrl = URL.createObjectURL(image);
@@ -151,12 +161,15 @@ export function createNewImageEmbed(image, openmct, imageName = '') {
         const createdEmbed = await createNewEmbed(embedMetaData, snapshot);
         resolve(createdEmbed);
       } catch (error) {
-        console.error(`${error.message} - unable to embed image ${imageName}`, error);
-        openmct.notifications.error('Unable to embed image.');
+        fail(error);
       }
     };
 
-    reader.readAsDataURL(image);
+    try {
+      reader.readAsDataURL(image);
+    } catch (error) {
+      fail(error);
+    }
   });
 }
 
