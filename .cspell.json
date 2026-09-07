@@ -489,7 +489,17 @@
     "requestfinished",
     "LOCF",
     "Unack",
-    "Tabnabbing"
+    "Tabnabbing",
+    "ARINC",
+    "criticals",
+    "exceedance",
+    "exceedances",
+    "IRIG",
+    "keyframed",
+    "measurand",
+    "TMATS",
+    "TSPI",
+    "unshelves"
   ],
   "dictionaries": ["npm", "softwareTerms", "node", "html", "css", "bash", "en_US", "en-gb", "misc"],
   "ignorePaths": [

@@ -26,6 +26,7 @@ import ExampleStaleness from '../../example/exampleStalenessProvider/plugin.js';
 import ExampleTags from '../../example/exampleTags/plugin.js';
 import ExampleUser from '../../example/exampleUser/plugin.js';
 import ExampleFaultSource from '../../example/faultManagement/exampleFaultSource.js';
+import FlightTestPlugin from '../../example/flightTest/plugin.js';
 import GeneratorPlugin from '../../example/generator/plugin.js';
 import ExampleImagery from '../../example/imagery/plugin.js';
 import AutoflowPlugin from './autoflow/AutoflowTabularPlugin.js';
@@ -105,6 +106,7 @@ plugins.example.ExampleDataVisualizationSourcePlugin = ExampleDataVisualizationS
 plugins.example.ExampleTags = ExampleTags;
 plugins.example.Generator = () => GeneratorPlugin;
 plugins.example.ExampleStaleness = ExampleStaleness;
+plugins.example.FlightTest = FlightTestPlugin;
 
 plugins.UTCTimeSystem = UTCTimeSystem;
 plugins.LocalTimeSystem = LocalTimeSystem;
