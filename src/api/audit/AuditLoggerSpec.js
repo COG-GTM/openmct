@@ -153,6 +153,44 @@ describe('The AuditLogger', () => {
         jasmine.any(Error)
       );
     });
+
+    it('logs a rejected asynchronous provider instead of surfacing an unhandled rejection', async () => {
+      spyOn(console, 'error');
+      const rejection = new Error('remote sink rejected');
+      const failing = { record: () => Promise.reject(rejection) };
+      const healthy = { record: jasmine.createSpy('record') };
+      openmct.audit.addProvider(failing);
+      openmct.audit.addProvider(healthy);
+
+      const auditRecord = await openmct.audit.record({ action: 'a' });
+      await Promise.resolve();
+
+      expect(healthy.record).toHaveBeenCalledOnceWith(auditRecord);
+      expect(console.error).toHaveBeenCalledWith(
+        'Audit provider failed to accept record:',
+        rejection
+      );
+    });
+
+    it('isolates a throwing record listener from other listeners and providers', async () => {
+      spyOn(console, 'error');
+      const listener = jasmine.createSpy('listener');
+      const provider = { record: jasmine.createSpy('record') };
+      openmct.audit.on('record', () => {
+        throw new Error('listener exploded');
+      });
+      openmct.audit.on('record', listener);
+      openmct.audit.addProvider(provider);
+
+      const auditRecord = await openmct.audit.record({ action: 'a' });
+
+      expect(listener).toHaveBeenCalledOnceWith(auditRecord);
+      expect(provider.record).toHaveBeenCalledOnceWith(auditRecord);
+      expect(console.error).toHaveBeenCalledWith(
+        'Audit record listener failed:',
+        jasmine.any(Error)
+      );
+    });
   });
 
   describe('actor resolution', () => {

@@ -133,6 +133,48 @@ describe('Import-from-JSON validation', () => {
     });
   });
 
+  it('rejects excessively deep nesting without exhausting the stack', () => {
+    const tree = validTree();
+    let deep = {};
+    const configuration = { deep };
+    for (let level = 0; level < 5000; level++) {
+      deep.next = {};
+      deep = deep.next;
+    }
+    tree.openmct[CHILD_KEY].configuration = configuration;
+
+    const errors = getImportTreeErrors(tree);
+    expect(errors.length).toBe(1);
+    expect(errors[0]).toContain('Nesting deeper than 64 levels');
+  });
+
+  it('accepts nesting up to the depth limit', () => {
+    const tree = validTree();
+    let deep = {};
+    const configuration = { deep };
+    // tree -> openmct -> child -> configuration -> deep is already 4 levels
+    for (let level = 0; level < 55; level++) {
+      deep.next = {};
+      deep = deep.next;
+    }
+    tree.openmct[CHILD_KEY].configuration = configuration;
+
+    expect(getImportTreeErrors(tree)).toEqual([]);
+  });
+
+  it('stops collecting after the error limit is reached', () => {
+    const tree = validTree();
+    const flooded = JSON.parse(
+      JSON.stringify(tree).replace(
+        '"timezone":"UTC"',
+        '"timezone":"UTC",' +
+          Array.from({ length: 50 }, (_, i) => `"k${i}":{"__proto__":{"x":1}}`).join(',')
+      )
+    );
+
+    expect(getImportTreeErrors(flooded).length).toBe(20);
+  });
+
   it('does not treat inherited prototype properties as reserved keys', () => {
     // a plain object only has inherited "constructor"; that must not be reported
     expect(getImportTreeErrors(validTree())).toEqual([]);

@@ -150,6 +150,23 @@ describe('NotebookEntry rendering', () => {
       expect(anchor.textContent).toBe('docs');
     });
 
+    it('preserves the link target exactly as written for bare and query-string URLs', async () => {
+      await render(
+        {
+          id: 'e1',
+          text: 'See https://www.example.com and https://www.example.com?bad= please',
+          embeds: []
+        },
+        ['example.com']
+      );
+
+      const anchors = Array.from(element.querySelectorAll('.c-ne__text a'));
+      expect(anchors.map((anchor) => anchor.getAttribute('href'))).toEqual([
+        'https://www.example.com',
+        'https://www.example.com?bad='
+      ]);
+    });
+
     it('does not turn links to non-allowlisted hosts into anchors', async () => {
       await render({ id: 'e1', text: '[evil](https://attacker.example/x)', embeds: [] });
 
@@ -182,7 +199,8 @@ describe('NotebookEntry rendering', () => {
       expect(element.querySelector('.c-ne__text img')).toBeNull();
       expect(anchor.textContent).toBe('<img src=x onerror=alert(1)>');
       expect(anchor.getAttribute('onmouseover')).toBeNull();
-      expect(anchor.getAttribute('href')).toBe('https://example.com/%22onmouseover=%22alert(1)');
+      expect(anchor.getAttribute('href')).toBe('https://example.com/"onmouseover="alert(1)');
+      expect(anchor.attributes.length).toBe(4);
       expect(html).not.toContain('onmouseover="alert');
     });
 

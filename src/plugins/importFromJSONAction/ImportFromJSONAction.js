@@ -24,11 +24,7 @@ import { parseKeyString } from 'objectUtils';
 import { filter__proto__ } from 'utils/sanitization';
 import { v4 as uuid } from 'uuid';
 
-import {
-  getImportTreeErrors,
-  IMPORT_REJECTED_MESSAGE,
-  validateImportTree
-} from './importValidation.js';
+import { IMPORT_REJECTED_MESSAGE, validateImportTree } from './importValidation.js';
 
 const IMPORT_FROM_JSON_ACTION_KEY = 'import.JSON';
 const SAVE_FAILED_MESSAGE = 'Import failed: one or more objects could not be saved.';
@@ -411,7 +407,7 @@ class ImportFromJSONAction {
               control: 'file-input',
               required: true,
               text: 'Select File...',
-              validate: this._validateJSON.bind(this),
+              validate: (data) => this._validateJSON(data, domainObject),
               type: 'application/json'
             }
           ]
@@ -425,34 +421,26 @@ class ImportFromJSONAction {
     });
   }
   /**
+   * Form-level validation of the selected file. Rejections are reported the
+   * same way as rejections at save time so every refused import is audited.
    * @private
    * @param {Object} data
+   * @param {Object} [target] the object the import is being attempted into
    * @returns {boolean}
    */
-  _validateJSON(data) {
+  _validateJSON(data, target) {
     const value = data.value;
     const objectTree = value && value.body;
-    let json;
-    let success = true;
+
     try {
-      json = JSON.parse(objectTree);
-    } catch (e) {
-      success = false;
+      validateImportTree(JSON.parse(objectTree, filter__proto__));
+    } catch (error) {
+      this._rejectImport(target, error);
+
+      return false;
     }
 
-    if (success) {
-      const errors = getImportTreeErrors(json);
-      if (errors.length) {
-        console.error('Import from JSON rejected:', errors);
-        success = false;
-      }
-    }
-
-    if (!success) {
-      this.openmct.notifications.error(IMPORT_REJECTED_MESSAGE);
-    }
-
-    return success;
+    return true;
   }
 }
 

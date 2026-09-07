@@ -488,7 +488,7 @@ export default {
           return safeText;
         }
 
-        return `<a class="c-hyperlink" target="_blank" rel="noopener noreferrer" href="${escapeHtml(url.href)}">${safeText}</a>`;
+        return `<a class="c-hyperlink" target="_blank" rel="noopener noreferrer" href="${escapeHtml(href)}">${safeText}</a>`;
       } catch (error) {
         // had error parsing this URL, just return the text
         return safeText;

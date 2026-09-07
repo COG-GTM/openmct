@@ -61,7 +61,7 @@ import { v4 as uuid } from 'uuid';
 
 /**
  * @typedef {Object} AuditProvider
- * @property {(record: AuditRecord) => void} record receives each completed audit record
+ * @property {(record: AuditRecord) => void | Promise<void>} record receives each completed audit record
  */
 
 const SOURCE = 'openmct';
@@ -200,11 +200,22 @@ export default class AuditLogger extends EventEmitter {
    * @param {AuditRecord} record
    */
   #dispatch(record) {
-    this.emit('record', record);
+    for (const listener of this.listeners('record')) {
+      try {
+        listener(record);
+      } catch (error) {
+        console.error('Audit record listener failed:', error);
+      }
+    }
 
     for (const provider of this.#providers) {
       try {
-        provider.record(record);
+        const result = provider.record(record);
+        if (typeof result?.then === 'function') {
+          result.then(undefined, (error) => {
+            console.error('Audit provider failed to accept record:', error);
+          });
+        }
       } catch (error) {
         console.error('Audit provider failed to accept record:', error);
       }

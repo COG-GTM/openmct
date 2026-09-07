@@ -31,6 +31,7 @@ const RESERVED_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 const TYPE_KEY_PATTERN = /^[A-Za-z0-9._-]{1,128}$/;
 const MAX_IDENTIFIER_LENGTH = 512;
 const MAX_ERRORS = 20;
+const MAX_DEPTH = 64;
 
 /**
  * Operator-facing message shown whenever an import file is rejected. It is
@@ -70,16 +71,11 @@ function describe(path) {
 
 /**
  * Walks every own property of a JSON value and reports reserved keys anywhere
- * in the graph (including nested configuration blobs).
+ * in the graph (including nested configuration blobs). Nesting deeper than
+ * MAX_DEPTH is rejected outright so a hostile file cannot exhaust the stack.
  */
 function collectReservedKeys(value, path, errors) {
   if (errors.length >= MAX_ERRORS) {
-    return;
-  }
-
-  if (Array.isArray(value)) {
-    value.forEach((item, index) => collectReservedKeys(item, [...path, `[${index}]`], errors));
-
     return;
   }
 
@@ -87,7 +83,25 @@ function collectReservedKeys(value, path, errors) {
     return;
   }
 
+  if (path.length >= MAX_DEPTH) {
+    errors.push(`Nesting deeper than ${MAX_DEPTH} levels at ${describe(path)}`);
+
+    return;
+  }
+
+  if (Array.isArray(value)) {
+    for (let index = 0; index < value.length && errors.length < MAX_ERRORS; index++) {
+      collectReservedKeys(value[index], [...path, `[${index}]`], errors);
+    }
+
+    return;
+  }
+
   for (const key of Object.getOwnPropertyNames(value)) {
+    if (errors.length >= MAX_ERRORS) {
+      return;
+    }
+
     if (RESERVED_KEYS.has(key)) {
       errors.push(`Reserved property "${key}" is not allowed at ${describe(path)}`);
       continue;

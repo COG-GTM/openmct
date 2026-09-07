@@ -356,22 +356,53 @@ describe('The import JSON action', function () {
       expect(auditRecords[0].outcome).toBe('failure');
     });
 
-    it('rejects invalid files in the form validator with a generic message', () => {
-      const validator = importFromJSONAction._validateJSON.bind(importFromJSONAction);
+    it('rejects invalid files in the form validator with a generic message and a failure audit record', async () => {
+      function validator(body) {
+        return importFromJSONAction._validateJSON({ value: { body } }, folderObject);
+      }
 
-      expect(validator({ value: { body: 'not json' } })).toBeFalse();
-      expect(validator({ value: { body: '{"openmct":{},"rootId":"x"}' } })).toBeFalse();
-      expect(
-        validator({
-          value: { body: '{"__proto__":{"polluted":true},"openmct":{},"rootId":"x"}' }
-        })
-      ).toBeFalse();
+      expect(validator('not json')).toBeFalse();
+      expect(validator('{"openmct":{},"rootId":"x"}')).toBeFalse();
+      expect(validator('{"__proto__":{"polluted":true},"openmct":{},"rootId":"x"}')).toBeFalse();
       expect(openmct.notifications.error).toHaveBeenCalledTimes(3);
       openmct.notifications.error.calls.allArgs().forEach(([message]) => {
         expect(message).toBe(
           'Import failed: the selected file is not a valid Open MCT export or contains unsupported content.'
         );
       });
+
+      const auditRecords = await audit.waitFor(3);
+      expect(auditRecords.length).toBe(3);
+      auditRecords.forEach((auditRecord) => {
+        expect(auditRecord.action).toBe('import');
+        expect(auditRecord.outcome).toBe('failure');
+        expect(auditRecord.target).toBe(openmct.objects.makeKeyString(folderObject.identifier));
+      });
+      expect(auditRecords.map((auditRecord) => auditRecord.details.reason)).toEqual([
+        'SyntaxError',
+        'ImportValidationError',
+        'ImportValidationError'
+      ]);
+    });
+
+    it('accepts a well-formed export in the form validator without notifying or auditing', () => {
+      const key = 'c28d230d-e909-4a3e-9840-d9ef469dda70';
+      const body = JSON.stringify({
+        openmct: {
+          [key]: {
+            identifier: { key, namespace: '' },
+            name: 'Unnamed Folder',
+            type: 'folder',
+            composition: [],
+            location: 'mine'
+          }
+        },
+        rootId: key
+      });
+
+      expect(importFromJSONAction._validateJSON({ value: { body } }, folderObject)).toBeTrue();
+      expect(openmct.notifications.error).not.toHaveBeenCalled();
+      expect(audit.records.length).toBe(0);
     });
   });
 });
