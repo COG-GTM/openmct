@@ -475,13 +475,24 @@ export default class Chapter10Adapter {
   }
 
   /**
-   * Parses one packet starting at `offset`.
+   * Parses one packet starting at `offset`. The whole packet, as declared by
+   * its Packet Length, must be present in the buffer and the header checksum
+   * must verify; anything else is rejected rather than partially decoded.
    *
    * @returns {{header: object, channel: object|undefined, keys: string[],
    *   body: object|undefined, busHealth: object|undefined}}
+   * @throws {Chapter10Error} on any header, checksum, length or body error
    */
   parsePacket(source, offset = 0) {
-    const header = parsePacketHeader(source, offset);
+    const view = toDataView(source);
+    const header = parsePacketHeader(view, offset);
+
+    if (!header.checksumValid) {
+      throw new Chapter10Error('Header checksum mismatch', offset + 22);
+    }
+
+    requireBytes(view, offset, header.packetLength, 'complete packet');
+
     const channel = this.channelMap[header.channelId];
     const result = {
       header,
@@ -501,7 +512,7 @@ export default class Chapter10Adapter {
     }
 
     if (header.dataType === MIL_STD_1553_FORMAT_1) {
-      result.body = parse1553Format1Body(source, header);
+      result.body = parse1553Format1Body(view, header);
       result.busHealth = summarize1553Messages(result.body.messages);
     }
 

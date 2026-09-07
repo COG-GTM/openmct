@@ -412,6 +412,30 @@ describe('The IRIG 106 Chapter 10 adapter', () => {
       expect(result.keys).toContain('ta-01.pcm.nz');
     });
 
+    it('rejects a packet with a header checksum mismatch', () => {
+      const packet = buildPacket({ channelId: 0x0010, dataType: 0x09, headerChecksum: 0x0000 });
+
+      expect(() => adapter.parsePacket(packet.buffer)).toThrowError(
+        Chapter10Error,
+        /checksum mismatch \(byte offset 22\)/i
+      );
+    });
+
+    it('rejects a packet whose declared length runs past the buffer', () => {
+      const packet = buildPacket({
+        channelId: 0x0010,
+        dataType: 0x09,
+        body: new Uint8Array(16)
+      });
+      const truncated = packet.subarray(0, packet.byteLength - 4);
+
+      expect(() => adapter.parsePacket(truncated)).toThrowError(
+        Chapter10Error,
+        /truncated packet: complete packet/i
+      );
+      expect(() => adapter.parseStream(truncated)).toThrowError(Chapter10Error, /truncated/i);
+    });
+
     it('rejects a packet whose data type disagrees with the channel map', () => {
       const packet = buildPacket({ channelId: 0x0010, dataType: MIL_STD_1553_FORMAT_1 });
 

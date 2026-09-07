@@ -208,6 +208,38 @@ describe('The flight test fault provider', () => {
     }
   });
 
+  it('cancels a pending shelve timer when the fault is removed', async () => {
+    jasmine.clock().install();
+
+    try {
+      const listener = jasmine.createSpy('listener');
+      provider.subscribe({}, listener);
+
+      provider.evaluate(at(13.35));
+      const nz = provider.snapshot().find((fault) => fault.id === 'ta-01.pcm.nz');
+      await provider.shelveFault(nz, { shelved: true, shelveDuration: 5000 });
+      await provider.acknowledgeFault(nz, {});
+      provider.evaluate(at(14.5));
+      expect(faultIds(provider.snapshot())).toEqual(['ta-01.pcm.aoa']);
+
+      listener.calls.reset();
+      jasmine.clock().tick(5001);
+      expect(listener).not.toHaveBeenCalled();
+
+      const aoa = provider.snapshot().find((fault) => fault.id === 'ta-01.pcm.aoa');
+      await provider.shelveFault(aoa, { shelved: true, shelveDuration: 5000 });
+      provider.evaluate(at(14.5));
+      await provider.acknowledgeFault(aoa, {});
+      expect(provider.snapshot()).toEqual([]);
+
+      listener.calls.reset();
+      jasmine.clock().tick(5001);
+      expect(listener).not.toHaveBeenCalled();
+    } finally {
+      jasmine.clock().uninstall();
+    }
+  });
+
   it('reports failure when acknowledging or shelving an unknown fault', async () => {
     expect(await provider.acknowledgeFault({ id: 'nope' }, {})).toEqual({ success: false });
     expect(await provider.shelveFault({ id: 'nope' }, {})).toEqual({ success: false });

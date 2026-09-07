@@ -246,12 +246,25 @@ describe('The flight test telemetry provider', () => {
       expect(data.length).toBe(6);
     });
 
-    it('returns a single sample when the window is narrower than the sample period', async () => {
+    it('returns nothing when the window contains no sample boundary', async () => {
       const start = SORTIE_BASE + 100;
-      const data = await provider.request(nz, { start, end: start + 200 });
+      const options = { start, end: start + 200 };
 
-      expect(data.length).toBe(1);
-      expect(data[0].utc).toBe(SORTIE_BASE);
+      expect(await provider.request(nz, options)).toEqual([]);
+      expect(await provider.request(nz, { ...options, strategy: 'latest' })).toEqual([]);
+    });
+
+    it('keeps every sample inside the requested bounds', async () => {
+      const start = SORTIE_BASE + 13 * MINUTE_MS + 250;
+      const end = start + 2500;
+      const data = await provider.request(nz, { start, end });
+      const latest = await provider.request(nz, { start, end, strategy: 'latest', size: 5 });
+
+      expect(data.map((datum) => datum.utc)).toEqual([
+        SORTIE_BASE + 13 * MINUTE_MS + 1000,
+        SORTIE_BASE + 13 * MINUTE_MS + 2000
+      ]);
+      expect(latest).toEqual(data);
     });
 
     it('returns enumerated bus status values as numbers', async () => {

@@ -185,7 +185,7 @@ export default class FlightTestFaultProvider {
     tracked.acknowledgeComment = ackData.comment ?? '';
 
     if (tracked.currentValueInfo.monitoringResult === 'IN_LIMITS') {
-      this.faults.delete(tracked.id);
+      this.#remove(tracked.id);
       this.#notify({ type: GLOBAL_ALARM_STATUS });
     } else {
       this.#notify({ type: ALARMS, fault: structuredClone(tracked) });
@@ -201,8 +201,7 @@ export default class FlightTestFaultProvider {
       return Promise.resolve({ success: false });
     }
 
-    clearTimeout(this.shelveTimers.get(tracked.id));
-    this.shelveTimers.delete(tracked.id);
+    this.#clearShelveTimer(tracked.id);
 
     tracked.shelved = shelveData.shelved !== false;
     tracked.shelveComment = shelveData.comment ?? '';
@@ -277,7 +276,7 @@ export default class FlightTestFaultProvider {
     }
 
     if (!active && !wasInLimits && existing.acknowledged) {
-      this.faults.delete(id);
+      this.#remove(id);
 
       return true;
     }
@@ -295,6 +294,16 @@ export default class FlightTestFaultProvider {
     }
 
     return escalated;
+  }
+
+  #remove(id) {
+    this.#clearShelveTimer(id);
+    this.faults.delete(id);
+  }
+
+  #clearShelveTimer(id) {
+    clearTimeout(this.shelveTimers.get(id));
+    this.shelveTimers.delete(id);
   }
 
   #notify(message) {

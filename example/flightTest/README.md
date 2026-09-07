@@ -83,8 +83,10 @@ type, 48-bit relative time counter, header checksum) from an `ArrayBuffer`,
 `DataView` or typed array, maps channel IDs to this plugin's telemetry keys,
 and parses MIL-STD-1553 Format 1 (data type `0x19`) intra-packet headers far
 enough to extract bus ID, error flags and word count. It is not a full
-PCM/1553 decoder. Malformed input (bad sync, truncated buffers, inconsistent
-lengths) is rejected with a `Chapter10Error` that carries the byte offset.
+PCM/1553 decoder. Malformed input (bad sync, header checksum mismatch,
+truncated packets, inconsistent lengths) is rejected with a `Chapter10Error`
+that carries the byte offset; `parsePacketHeader` alone reports the checksum
+result as `checksumValid` for diagnostics.
 
 ```js
 import Chapter10Adapter from './Chapter10Adapter.js';

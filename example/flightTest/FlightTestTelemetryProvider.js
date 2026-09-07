@@ -90,26 +90,25 @@ export default class FlightTestTelemetryProvider {
       return data;
     }
 
-    if (options.strategy === 'latest') {
-      const alignedEnd = Math.floor(end / SAMPLE_PERIOD_MS) * SAMPLE_PERIOD_MS;
-      const count = Math.min(size, Math.floor((alignedEnd - start) / SAMPLE_PERIOD_MS) + 1);
+    const alignedStart = Math.ceil(start / SAMPLE_PERIOD_MS) * SAMPLE_PERIOD_MS;
+    const alignedEnd = Math.floor(end / SAMPLE_PERIOD_MS) * SAMPLE_PERIOD_MS;
 
-      for (let i = Math.max(count, 1) - 1; i >= 0; i--) {
+    if (alignedStart > alignedEnd) {
+      return data;
+    }
+
+    const available = (alignedEnd - alignedStart) / SAMPLE_PERIOD_MS + 1;
+    const count = Math.min(available, size);
+
+    if (options.strategy === 'latest') {
+      for (let i = count - 1; i >= 0; i--) {
         data.push(parameterDatum(domainObject, alignedEnd - i * SAMPLE_PERIOD_MS));
       }
 
       return data;
     }
 
-    let alignedStart = Math.ceil(start / SAMPLE_PERIOD_MS) * SAMPLE_PERIOD_MS;
-
-    if (alignedStart > end) {
-      alignedStart = Math.floor(start / SAMPLE_PERIOD_MS) * SAMPLE_PERIOD_MS;
-    }
-
-    const available = Math.floor((end - alignedStart) / SAMPLE_PERIOD_MS) + 1;
-    const count = Math.min(Math.max(available, 1), size);
-    const step = count > 1 ? (end - alignedStart) / (count - 1) : SAMPLE_PERIOD_MS;
+    const step = count > 1 ? (alignedEnd - alignedStart) / (count - 1) : 0;
 
     for (let i = 0; i < count; i++) {
       data.push(parameterDatum(domainObject, Math.round(alignedStart + i * step)));
