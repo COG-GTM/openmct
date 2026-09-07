@@ -172,24 +172,49 @@ describe('The AuditLogger', () => {
       );
     });
 
-    it('isolates a throwing record listener from other listeners and providers', async () => {
+    it('isolates a throwing record listener from providers and the caller', async () => {
       spyOn(console, 'error');
-      const listener = jasmine.createSpy('listener');
       const provider = { record: jasmine.createSpy('record') };
       openmct.audit.on('record', () => {
         throw new Error('listener exploded');
       });
-      openmct.audit.on('record', listener);
       openmct.audit.addProvider(provider);
 
       const auditRecord = await openmct.audit.record({ action: 'a' });
 
-      expect(listener).toHaveBeenCalledOnceWith(auditRecord);
+      expect(auditRecord.action).toBe('a');
       expect(provider.record).toHaveBeenCalledOnceWith(auditRecord);
       expect(console.error).toHaveBeenCalledWith(
         'Audit record listener failed:',
         jasmine.any(Error)
       );
+    });
+
+    it('honors once(), off() and listener context for record events', async () => {
+      const onceListener = jasmine.createSpy('once');
+      const removedListener = jasmine.createSpy('removed');
+      const context = {
+        seen: [],
+        contextListener(auditRecord) {
+          this.seen.push(auditRecord.action);
+        }
+      };
+      const { contextListener } = context;
+
+      openmct.audit.once('record', onceListener);
+      openmct.audit.on('record', removedListener);
+      openmct.audit.on('record', contextListener, context);
+
+      await openmct.audit.record({ action: 'first' });
+      openmct.audit.off('record', removedListener);
+      await openmct.audit.record({ action: 'second' });
+
+      expect(onceListener).toHaveBeenCalledTimes(1);
+      expect(removedListener).toHaveBeenCalledTimes(1);
+      expect(context.seen).toEqual(['first', 'second']);
+      expect(openmct.audit.listenerCount('record')).toBe(1);
+
+      openmct.audit.off('record', contextListener, context);
     });
   });
 

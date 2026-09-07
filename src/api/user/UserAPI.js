@@ -117,9 +117,12 @@ class UserAPI extends EventEmitter {
   }
   /**
    * Set the active role in session storage
+   * @param {string | null | undefined} role
+   * @param {{ synchronized?: boolean }} [options] set `synchronized` when the change
+   * mirrors a selection already made (and audited) in another browsing context
    * @returns {undefined}
    */
-  setActiveRole(role) {
+  setActiveRole(role, { synchronized = false } = {}) {
     const previousRole = StoragePersistence.getActiveRole() ?? null;
     const newRole = role || null;
 
@@ -130,8 +133,9 @@ class UserAPI extends EventEmitter {
     }
     this.emit('roleChanged', role);
 
-    // roles are only meaningful (and only reported) once a user provider exists
-    if (this.hasProvider() && newRole !== previousRole) {
+    // roles are only meaningful (and only reported) once a user provider exists;
+    // the originating context records the change, mirrors do not
+    if (this.hasProvider() && !synchronized && newRole !== previousRole) {
       this.#openmct.audit?.record({
         action: 'user.role.change',
         outcome: 'success',

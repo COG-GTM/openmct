@@ -323,6 +323,36 @@ describe('The import JSON action', function () {
       expect(auditRecords[0].details.rootType).toBe('folder');
     });
 
+    it('emits a failure audit record and persists nothing when the composition policy rejects the root', async () => {
+      const key = 'c28d230d-e909-4a3e-9840-d9ef469dda70';
+      const body = JSON.stringify({
+        openmct: {
+          [key]: {
+            identifier: { key, namespace: '' },
+            name: 'Unnamed Folder',
+            type: 'folder',
+            composition: [],
+            location: 'mine'
+          }
+        },
+        rootId: key
+      });
+      spyOn(openmct.composition, 'checkPolicy').and.returnValue(false);
+      const dismiss = jasmine.createSpy('dismiss');
+      spyOn(openmct.overlays, 'dialog').and.returnValue({ dismiss });
+
+      await importFromJSONAction.onSave(folderObject, { selectFile: { body } });
+      const auditRecords = await audit.waitFor(1);
+
+      expect(openmct.objects.save).not.toHaveBeenCalled();
+      expect(openmct.overlays.dialog).toHaveBeenCalledTimes(1);
+      expect(auditRecords.length).toBe(1);
+      expect(auditRecords[0].action).toBe('import');
+      expect(auditRecords[0].outcome).toBe('failure');
+      expect(auditRecords[0].target).toBe(folderObject.identifier.key);
+      expect(auditRecords[0].details).toEqual({ reason: 'CompositionPolicy', rootType: 'folder' });
+    });
+
     it('shows a generic message and logs the raw error when saving fails', async () => {
       const key = 'c28d230d-e909-4a3e-9840-d9ef469dda70';
       const body = JSON.stringify({

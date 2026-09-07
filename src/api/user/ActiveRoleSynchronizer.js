@@ -19,7 +19,7 @@ class ActiveRoleSynchronizer {
 
   setActiveRoleFromChannelMessage(event) {
     const role = event.data;
-    this.openmct.user.setActiveRole(role);
+    this.openmct.user.setActiveRole(role, { synchronized: true });
   }
   broadcastNewRole(role) {
     if (!this.#roleChannel.name) {

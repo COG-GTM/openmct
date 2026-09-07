@@ -200,14 +200,6 @@ export default class AuditLogger extends EventEmitter {
    * @param {AuditRecord} record
    */
   #dispatch(record) {
-    for (const listener of this.listeners('record')) {
-      try {
-        listener(record);
-      } catch (error) {
-        console.error('Audit record listener failed:', error);
-      }
-    }
-
     for (const provider of this.#providers) {
       try {
         const result = provider.record(record);
@@ -219,6 +211,13 @@ export default class AuditLogger extends EventEmitter {
       } catch (error) {
         console.error('Audit provider failed to accept record:', error);
       }
+    }
+
+    // emitted through the EventEmitter so on/once/off semantics are preserved
+    try {
+      this.emit('record', record);
+    } catch (error) {
+      console.error('Audit record listener failed:', error);
     }
   }
 }

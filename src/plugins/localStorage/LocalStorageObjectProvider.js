@@ -27,10 +27,11 @@ const PROVIDER = 'localStorage';
 
 export default class LocalStorageObjectProvider {
   constructor(spaceKey = 'mct') {
-    this.localStorage = window.localStorage;
     this.spaceKey = spaceKey;
 
     try {
+      // the property getter itself throws when the browser denies storage access
+      this.localStorage = window.localStorage;
       this.initializeSpace(spaceKey);
     } catch (error) {
       // reads and writes will surface a generic PersistenceError later on

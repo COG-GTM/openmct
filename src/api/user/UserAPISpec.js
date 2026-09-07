@@ -118,6 +118,20 @@ describe('The User API', () => {
       expect(openmct.user.getActiveRole()).toBeNull();
     });
 
+    it('does not emit a record when mirroring a role change from another browsing context', async () => {
+      const roleChanged = jasmine.createSpy('roleChanged');
+      openmct.user.on('roleChanged', roleChanged);
+
+      openmct.user.setActiveRole('flight', { synchronized: true });
+      await openmct.audit.record({ action: 'test.marker' });
+
+      expect(roleChanged).toHaveBeenCalledOnceWith('flight');
+      expect(openmct.user.getActiveRole()).toBe('flight');
+      expect(audit.records.map((auditRecord) => auditRecord.action)).toEqual(['test.marker']);
+
+      openmct.user.off('roleChanged', roleChanged);
+    });
+
     it('does not emit a record when the role is unchanged', async () => {
       openmct.user.setActiveRole(undefined);
       openmct.user.setActiveRole('flight');

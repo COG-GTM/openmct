@@ -1365,6 +1365,58 @@ can be used to manage user information and roles.
 Open MCT provides an example [user](example/exampleUser/exampleUserCreator.js) and [user provider](example/exampleUser/ExampleUserProvider.js) which
 can be used as a starting point for creating a custom user provider.
 
+## Audit API
+
+`openmct.audit` emits structured audit records (who / what / when / outcome) for
+operator actions that already carry a user context: import and export as JSON,
+role changes, notebook entry creation and deletion, and fault acknowledgement
+and shelving. Records are kept in memory only; nothing is persisted or
+transmitted unless a provider is registered.
+
+Each record has the shape:
+
+```javascript
+{
+  id: string,            // unique id for this record
+  source: 'openmct',
+  timestamp: string,     // ISO 8601 UTC
+  action: string,        // e.g. 'import', 'notebook.entry.create', 'user.role.change'
+  outcome: 'success' | 'failure',
+  actor: { id: string | null, username: string | null, role: string | null },
+  target: string | null, // key string of the domain object acted upon, if any
+  details: Object        // action-specific context; never contains raw errors
+}
+```
+
+Providers receive every completed record and may return a promise. A provider
+that throws or rejects is logged and does not affect the originating action or
+other providers:
+
+```javascript
+openmct.audit.addProvider({
+  record(auditRecord) {
+    return fetch('/audit', { method: 'POST', body: JSON.stringify(auditRecord) });
+  }
+});
+openmct.audit.removeProvider(provider);
+openmct.audit.hasProviders(); // boolean
+```
+
+Plugins may also emit their own records; `outcome` defaults to `'success'` and
+`target` accepts an identifier or key string:
+
+```javascript
+await openmct.audit.record({
+  action: 'my-plugin.publish',
+  outcome: 'failure',
+  target: domainObject.identifier,
+  details: { reason: 'Timeout' }
+});
+```
+
+`openmct.audit` is an `EventEmitter`; `openmct.audit.on('record', listener)`
+(and `once` / `off`) observe records in-process with standard emitter semantics.
+
 ## Visibility-Based Rendering in View Providers
 
 To enhance performance and resource efficiency in OpenMCT, a visibility-based rendering feature has been added. This feature is designed to defer the execution of rendering logic for views that are not currently visible. It ensures that views are only updated when they are in the viewport, similar to how modern browsers handle rendering of inactive tabs but optimized for the OpenMCT tabbed display. It also works when views are scrolled outside the viewport (e.g., in a Display Layout).

@@ -367,6 +367,12 @@ class ImportFromJSONAction {
       });
     } else {
       importDialog.dismiss();
+      this.openmct.audit?.record({
+        action: 'import',
+        outcome: 'failure',
+        target: domainObject.identifier,
+        details: { reason: 'CompositionPolicy', rootType: rootObj.type }
+      });
       const cannotImportDialog = this.openmct.overlays.dialog({
         iconClass: 'alert',
         message: "We're sorry, but you cannot import that object type into this object.",

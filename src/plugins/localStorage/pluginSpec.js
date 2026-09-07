@@ -167,6 +167,38 @@ describe('The local storage plugin', () => {
 
       getItem.and.callThrough();
     });
+
+    it('does not throw from the constructor when the storage property itself is denied, and rejects later operations generically', async () => {
+      const securityError = new DOMException(
+        'The document is sandboxed at /internal/path',
+        'SecurityError'
+      );
+      const storageGetter = spyOnProperty(window, 'localStorage', 'get').and.throwError(
+        securityError
+      );
+
+      let instance;
+      expect(() => {
+        instance = new provider.constructor(`${space}-denied`);
+      }).not.toThrow();
+      storageGetter.and.callThrough();
+
+      let caught;
+      try {
+        await instance.create({
+          identifier: { namespace: '', key: 'test-key' },
+          name: 'A test object'
+        });
+      } catch (error) {
+        caught = error;
+      }
+
+      expect(caught).toBeInstanceOf(openmct.objects.errors.Persistence);
+      expect(caught.message).toBe('Browser storage is unavailable or full.');
+      expect(caught.message).not.toContain('/internal/path');
+      expect(caught.operation).toBe('write');
+      expect(console.error).toHaveBeenCalledTimes(2);
+    });
   });
 
   afterEach(() => {
