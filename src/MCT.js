@@ -305,6 +305,7 @@ export class MCT extends EventEmitter {
     this.install(this.plugins.DeviceClassifier());
     this.install(this.plugins.UserIndicator());
     this.install(this.plugins.Gauge());
+    this.install(this.plugins.TrafficLight());
     this.install(this.plugins.InspectorViews());
   }
   /**
