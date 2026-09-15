@@ -44,13 +44,14 @@ function containsToken(text, tokens) {
 
 /**
  * Map the result of a LimitEvaluator's evaluate() call to a traffic light status.
- * Any limit violation whose severity cannot be recognized is treated as a warning.
+ * A result without a cssClass or name is treated as nominal; any other limit
+ * violation whose severity cannot be recognized is treated as a warning.
  * @param {{cssClass?: string, name?: string} | undefined} limit
  * @returns {string | undefined} STATUS.RED, STATUS.YELLOW, or undefined when the
  *   evaluation carried no limit violation
  */
 export function statusFromLimitEvaluation(limit) {
-  if (!limit) {
+  if (!limit || (!limit.cssClass && !limit.name)) {
     return undefined;
   }
 

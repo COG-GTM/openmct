@@ -50,6 +50,10 @@ const STATUS_LABELS = {
   [STATUS.GRAY]: 'No data'
 };
 
+function isNumericText(value) {
+  return value !== '' && value != null && !Number.isNaN(Number(value));
+}
+
 export default {
   mixins: [stalenessMixin],
   inject: ['openmct', 'domainObject', 'composition', 'renderWhenVisible'],
@@ -165,8 +169,10 @@ export default {
         return;
       }
 
+      const rangeValues = this.metadata.valuesForHints(['range']);
+
       this.formats = this.openmct.telemetry.getFormatMap(this.metadata);
-      this.valueMetadata = this.metadata.valuesForHints(['range'])[0];
+      this.valueMetadata = rangeValues.find((value) => value.format !== 'string') ?? rangeValues[0];
       this.valueKey = this.valueMetadata?.key;
       this.valueSource = this.valueMetadata?.source ?? this.valueKey;
       this.units = this.valueMetadata?.unit ?? '';
@@ -175,19 +181,34 @@ export default {
       this.openmct.telemetry
         .getLimits(domainObject)
         .limits()
-        .then(this.updateLimitDefinition)
+        .then((limitDefinition) => {
+          this.updateLimitDefinition(domainObject, limitDefinition);
+        })
         .catch(() => {
-          this.limitDefinition = undefined;
+          this.updateLimitDefinition(domainObject, undefined);
         });
+      this.unsubscribeLimits = this.openmct.telemetry.subscribeToLimits(
+        domainObject,
+        (limitDefinition) => {
+          this.updateLimitDefinition(domainObject, limitDefinition);
+        }
+      );
 
       this.request();
       this.subscribe();
       this.subscribeToStaleness(domainObject);
     },
     removeTelemetryObject() {
+      this.requestId = (this.requestId ?? 0) + 1;
+
       if (this.unsubscribe) {
         this.unsubscribe();
         this.unsubscribe = undefined;
+      }
+
+      if (this.unsubscribeLimits) {
+        this.unsubscribeLimits();
+        this.unsubscribeLimits = undefined;
       }
 
       if (this.telemetryObject) {
@@ -200,29 +221,40 @@ export default {
       this.valueMetadata = undefined;
       this.limitEvaluator = undefined;
       this.limitDefinition = undefined;
-      this.limitEvaluation = undefined;
       this.valueKey = undefined;
       this.valueSource = undefined;
       this.units = '';
+      this.clearValue();
+    },
+    clearValue() {
       this.datum = undefined;
       this.curVal = DEFAULT_CURRENT_VALUE;
       this.rawValue = undefined;
+      this.limitEvaluation = undefined;
       this.hasData = false;
     },
     refreshData(bounds, isTick) {
-      if (!isTick && this.telemetryObject) {
-        this.request();
+      if (isTick || !this.telemetryObject) {
+        return;
       }
+
+      this.clearValue();
+      this.request();
     },
     request() {
+      const requestedObject = this.telemetryObject;
+      const requestId = (this.requestId ?? 0) + 1;
       const options = {
         strategy: 'latest',
         size: 1,
         timeContext: this.openmct.time.getContextForView([])
       };
 
-      this.openmct.telemetry.request(this.telemetryObject, options).then((values) => {
-        if (values && values.length) {
+      this.requestId = requestId;
+      this.openmct.telemetry.request(requestedObject, options).then((values) => {
+        const isCurrent = requestId === this.requestId && requestedObject === this.telemetryObject;
+
+        if (isCurrent && values && values.length) {
           this.updateValue(values[values.length - 1]);
         }
       });
@@ -230,8 +262,10 @@ export default {
     subscribe() {
       this.unsubscribe = this.openmct.telemetry.subscribe(this.telemetryObject, this.updateValue);
     },
-    updateLimitDefinition(limitDefinition) {
-      this.limitDefinition = limitDefinition;
+    updateLimitDefinition(domainObject, limitDefinition) {
+      if (domainObject === this.telemetryObject) {
+        this.limitDefinition = limitDefinition;
+      }
     },
     updateConfiguration(configuration) {
       if (!configuration) {
@@ -266,16 +300,23 @@ export default {
       this.isRendering = true;
       this.renderWhenVisible(() => {
         this.isRendering = false;
-        this.render(this.datum);
+
+        if (this.datum) {
+          this.render(this.datum);
+        }
       });
     },
     render(datum) {
       const formatter = this.formats?.[this.valueKey] ?? this.formats?.[this.valueSource];
-      const formatted = formatter ? formatter.format(datum) : datum[this.valueSource];
-      const numeric = formatted === '' || formatted == null ? NaN : Number(formatted);
+      const raw = formatter ? formatter.parse(datum) : datum[this.valueSource];
+      const formatted = formatter ? formatter.format(datum) : raw;
+      const numeric = typeof raw === 'number' && Number.isFinite(raw) ? raw : undefined;
 
-      this.rawValue = Number.isNaN(numeric) ? undefined : numeric;
-      this.curVal = Number.isNaN(numeric) ? String(formatted) : this.formatNumber(numeric);
+      this.rawValue = numeric;
+      this.curVal =
+        numeric !== undefined && isNumericText(formatted)
+          ? this.formatNumber(numeric)
+          : String(formatted ?? DEFAULT_CURRENT_VALUE);
       this.limitEvaluation = this.limitEvaluator?.evaluate(datum, this.valueMetadata);
       this.hasData = true;
     },

@@ -103,7 +103,6 @@ describe('Traffic Light plugin', () => {
     openmct.on('start', done);
 
     openmct.install(openmct.plugins.example.Generator());
-    openmct.install(openmct.plugins.TrafficLight());
 
     openmct.startHeadless();
   });
@@ -211,6 +210,12 @@ describe('Traffic Light plugin', () => {
       );
     });
 
+    it('treats evaluator results without a class or name as nominal', () => {
+      expect(statusFromLimitEvaluation({})).toBeUndefined();
+      expect(statusFromLimitEvaluation({ cssClass: '', name: '' })).toBeUndefined();
+      expect(statusFromLimitEvaluation({ cssClass: 'is-limit--yellow' })).toEqual(STATUS.YELLOW);
+    });
+
     it('is gray without data or when stale, and green without limits', () => {
       expect(resolveStatus({ hasData: false, isStale: false })).toEqual(STATUS.GRAY);
       expect(resolveStatus({ hasData: true, isStale: true, value: 0.95 })).toEqual(STATUS.GRAY);
@@ -221,13 +226,17 @@ describe('Traffic Light plugin', () => {
   describe('Traffic Light view', () => {
     let trafficLightView;
     let subscriptionCallback;
+    let limitsCallback;
     let unsubscribeSpy;
+    let unsubscribeLimitsSpy;
     let requestedValue;
 
     beforeEach(() => {
       requestedValue = 0.1;
       subscriptionCallback = undefined;
+      limitsCallback = undefined;
       unsubscribeSpy = jasmine.createSpy('unsubscribe');
+      unsubscribeLimitsSpy = jasmine.createSpy('unsubscribeLimits');
 
       const testObjectProvider = jasmine.createSpyObj('testObjectProvider', [
         'get',
@@ -252,12 +261,17 @@ describe('Traffic Light plugin', () => {
       openmct.objects.addProvider('test-namespace', testObjectProvider);
 
       spyOn(openmct.telemetry, 'request').and.callFake(() =>
-        Promise.resolve([sineDatum(requestedValue)])
+        Promise.resolve(requestedValue === undefined ? [] : [sineDatum(requestedValue)])
       );
       spyOn(openmct.telemetry, 'subscribe').and.callFake((domainObject, callback) => {
         subscriptionCallback = callback;
 
         return unsubscribeSpy;
+      });
+      spyOn(openmct.telemetry, 'subscribeToLimits').and.callFake((domainObject, callback) => {
+        limitsCallback = callback;
+
+        return unsubscribeLimitsSpy;
       });
       spyOn(openmct.telemetry, 'subscribeToStaleness').and.returnValue(() => {});
       spyOn(openmct.telemetry, 'isStale').and.returnValue(Promise.resolve({ isStale: false }));
@@ -308,6 +322,12 @@ describe('Traffic Light plugin', () => {
       return nextTick();
     }
 
+    function changeBounds() {
+      openmct.time.emit('boundsChanged', TIME_BOUNDS, false);
+
+      return new Promise((resolve) => setTimeout(resolve, 20)).then(nextTick);
+    }
+
     it('renders the light and the latest formatted value', () => {
       expect(holder.querySelectorAll('.js-traffic-light').length).toBe(1);
       expect(lightElement()).not.toBeNull();
@@ -349,10 +369,40 @@ describe('Traffic Light plugin', () => {
       expect(holder.querySelector('.js-traffic-light-value').textContent).toContain('-0.20');
     });
 
+    it('clears the light when new bounds contain no data', async () => {
+      await emit(0.95);
+      expect(lightElement().classList).toContain('is-red');
+
+      requestedValue = undefined;
+      await changeBounds();
+
+      expect(lightElement().classList).toContain('is-gray');
+      expect(holder.querySelector('.js-traffic-light-value').textContent).toContain('--');
+    });
+
+    it('re-requests the latest in-bounds value when bounds change', async () => {
+      requestedValue = 0.6;
+      await changeBounds();
+
+      expect(lightElement().classList).toContain('is-yellow');
+      expect(holder.querySelector('.js-traffic-light-value').textContent).toContain('0.60');
+    });
+
+    it('applies limit definitions pushed by the limits subscription', async () => {
+      expect(openmct.telemetry.subscribeToLimits).toHaveBeenCalled();
+      expect(lightElement().classList).toContain('is-green');
+
+      limitsCallback({ CRITICAL: { high: { sin: 0.05 } } });
+      await nextTick();
+
+      expect(lightElement().classList).toContain('is-red');
+    });
+
     it('cleans up subscriptions on destroy', () => {
       trafficLightView.destroy();
 
       expect(unsubscribeSpy).toHaveBeenCalled();
+      expect(unsubscribeLimitsSpy).toHaveBeenCalled();
 
       trafficLightView = { destroy() {} };
     });
