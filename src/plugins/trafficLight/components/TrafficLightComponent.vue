@@ -51,7 +51,7 @@ const STATUS_LABELS = {
 };
 
 function isNumericText(value) {
-  return value !== '' && value != null && !Number.isNaN(Number(value));
+  return value !== '' && value !== null && value !== undefined && !Number.isNaN(Number(value));
 }
 
 export default {
