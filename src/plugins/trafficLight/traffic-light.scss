@@ -1,0 +1,91 @@
+$trafficLightGreen: $colorOk;
+$trafficLightYellow: $colorLimitYellowIc;
+$trafficLightRed: $colorLimitRedIc;
+$trafficLightGray: $colorStatusBtnBg;
+
+.is-object-type-trafficLight {
+  overflow: hidden;
+}
+
+.c-traffic-light {
+  @include abs();
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: $interiorMargin;
+  overflow: hidden;
+  padding: $interiorMargin;
+
+  &__light {
+    $c: $trafficLightGray;
+    flex: 1 1 auto;
+    aspect-ratio: 1 / 1;
+    min-height: 0;
+    min-width: 0;
+    max-height: 100%;
+    max-width: 100%;
+    border-radius: 50%;
+    background: $c;
+    box-shadow:
+      inset 0 0 0 2px rgba(#000, 0.4),
+      0 0 0 4px rgba($c, 0.25);
+    transition:
+      background $transitionTimeGauge ease-in-out,
+      box-shadow $transitionTimeGauge ease-in-out;
+
+    &.is-green {
+      $c: $trafficLightGreen;
+      background: $c;
+      box-shadow:
+        inset 0 0 0 2px rgba(#000, 0.4),
+        0 0 30px 6px rgba($c, 0.5);
+    }
+
+    &.is-yellow {
+      $c: $trafficLightYellow;
+      background: $c;
+      box-shadow:
+        inset 0 0 0 2px rgba(#000, 0.4),
+        0 0 30px 6px rgba($c, 0.5);
+    }
+
+    &.is-red {
+      $c: $trafficLightRed;
+      background: $c;
+      box-shadow:
+        inset 0 0 0 2px rgba(#000, 0.4),
+        0 0 30px 6px rgba($c, 0.5);
+    }
+
+    &.is-gray {
+      background: $trafficLightGray;
+      box-shadow: inset 0 0 0 2px rgba(#000, 0.4);
+    }
+  }
+
+  &__value {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: baseline;
+    gap: $interiorMargin;
+    font-family: $numericFont;
+    font-size: 1.5em;
+    color: $colorGaugeTextValue;
+    white-space: nowrap;
+  }
+
+  &__units {
+    font-size: 0.7em;
+    color: $colorGaugeRange;
+  }
+
+  &.is-stale {
+    @include isStaleHolder();
+
+    .c-traffic-light__value-text {
+      color: $colorTelemStale;
+      font-style: italic;
+    }
+  }
+}
