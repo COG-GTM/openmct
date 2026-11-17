@@ -250,28 +250,30 @@
         class="c-telemetry-table__sizing js-telemetry-table__sizing"
         :style="sizingTableWidth"
       >
-        <SizingRow :is-editing="isEditing" @change-height="setRowHeight" />
-        <tr>
-          <template v-for="(title, key) in headers" :key="key">
-            <th
-              :style="{
-                width: configuredColumnWidths[key] + 'px',
-                'max-width': configuredColumnWidths[key] + 'px'
-              }"
-            >
-              {{ title }}
-            </th>
-          </template>
-        </tr>
-        <TelemetryTableRow
-          v-for="(sizingRowData, objectKeyString) in sizingRows"
-          :key="objectKeyString"
-          :headers="headers"
-          :column-widths="configuredColumnWidths"
-          :row="sizingRowData"
-          :object-path="objectPath"
-          @row-context-click="updateViewContext"
-        />
+        <tbody ref="sizingTableBody">
+          <SizingRow :is-editing="isEditing" @change-height="setRowHeight" />
+          <tr>
+            <template v-for="(title, key) in headers" :key="key">
+              <th
+                :style="{
+                  width: configuredColumnWidths[key] + 'px',
+                  'max-width': configuredColumnWidths[key] + 'px'
+                }"
+              >
+                {{ title }}
+              </th>
+            </template>
+          </tr>
+          <TelemetryTableRow
+            v-for="(sizingRowData, objectKeyString) in sizingRows"
+            :key="objectKeyString"
+            :headers="headers"
+            :column-widths="configuredColumnWidths"
+            :row="sizingRowData"
+            :object-path="objectPath"
+            @row-context-click="updateViewContext"
+          />
+        </tbody>
       </table>
       <TableFooterIndicator
         class="c-telemetry-table__footer"
@@ -689,7 +691,7 @@ export default {
       let columnWidths = {};
       let totalWidth = 0;
       let headerKeys = Object.keys(this.headers);
-      let sizingTableRow = this.sizingTable.children[1];
+      let sizingTableRow = this.$refs.sizingTableBody.children[1];
       let sizingCells = sizingTableRow.children;
 
       headerKeys.forEach((headerKey, headerIndex, array) => {

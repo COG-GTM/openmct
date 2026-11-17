@@ -139,6 +139,10 @@
     pointer-events: none;
     position: absolute;
 
+    tbody {
+      display: table-row-group;
+    }
+
     //Add some padding to allow for decorations such as limits indicator
     tr {
       display: table-row;
